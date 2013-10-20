@@ -1,3 +1,4 @@
+package Server;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -8,6 +9,9 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.util.Scanner;
+
+import RMI.RMI;
+import Util.RemoteHost;
 
 public class Server {
 

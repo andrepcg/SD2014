@@ -1,3 +1,4 @@
+package Cliente;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -8,6 +9,9 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import Util.RemoteHost;
+import Util.Response;
 
 public class ClientSocketThread extends Thread {
 

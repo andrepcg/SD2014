@@ -1,6 +1,11 @@
+package RMI;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+
+import SQL.OracleJDBC;
+import Util.Topico;
+import Util.Transaccao;
 
 public interface RMI extends Remote {
 

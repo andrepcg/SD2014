@@ -1,6 +1,12 @@
+package Cliente;
+
 import java.io.IOException;
 import java.util.InputMismatchException;
 import java.util.Scanner;
+
+import Util.RemoteHost;
+import Util.Response;
+import Util.User;
 
 public class ClientTCP {
 
@@ -10,8 +16,8 @@ public class ClientTCP {
 
 	public static void main(String args[]) throws IOException {
 
-		// String loader = getHost(args);
-		String loader = "192.168.1.81:9000";
+		String loader = getHost(args);
+		// String loader = "192.168.1.81:9000";
 
 		if (loader.length() > 1) {
 			new ClientTCP(new RemoteHost(loader));

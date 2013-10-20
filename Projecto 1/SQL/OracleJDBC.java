@@ -1,9 +1,14 @@
+package SQL;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+
+import Util.Topico;
+import Util.Transaccao;
 
 public class OracleJDBC {
 
@@ -41,7 +46,7 @@ public class OracleJDBC {
 		}
 	}
 
-	boolean registo(String user, String pass) {
+	public boolean registo(String user, String pass) {
 
 		try {
 
@@ -59,7 +64,7 @@ public class OracleJDBC {
 		}
 	}
 
-	int login(String user, String pass) {
+	public int login(String user, String pass) {
 
 		try {
 
@@ -81,7 +86,7 @@ public class OracleJDBC {
 		return -1;
 	}
 
-	boolean criarTopico(String nome) {
+	public boolean criarTopico(String nome) {
 
 		try {
 			String sql = "INSERT into topicos(nome) values(?)";
@@ -95,7 +100,7 @@ public class OracleJDBC {
 
 	}
 
-	ArrayList<Transaccao> transaccoes(int idUser, int limit) {
+	public ArrayList<Transaccao> transaccoes(int idUser, int limit) {
 		if (limit == 0)
 			limit = 10;
 		PreparedStatement stm = null;
@@ -116,7 +121,7 @@ public class OracleJDBC {
 		return ts;
 	}
 
-	ArrayList<Topico> mostraTopicos() {
+	public ArrayList<Topico> mostraTopicos() {
 		ArrayList<Topico> topicos = new ArrayList<Topico>();
 		try {
 			String sql = "Select * from topicos";
@@ -133,7 +138,7 @@ public class OracleJDBC {
 
 	}
 
-	String MD5(String md5) {
+	private String MD5(String md5) {
 		try {
 			java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
 			byte[] array = md.digest(md5.getBytes());
