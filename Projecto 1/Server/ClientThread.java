@@ -1,3 +1,4 @@
+package Server;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -7,6 +8,10 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+
+import RMI.RMI;
+import Util.Topico;
+import Util.Transaccao;
 
 class ClientThread extends Thread {
 	private Socket clientSocket;
@@ -96,7 +101,7 @@ class ClientThread extends Thread {
 			String lista = "";
 
 			for (Topico t : topicos) {
-				lista += t.id + ";" + t.nome + "\\|";
+				lista += t.getId() + ";" + t.getNome() + "\\|";
 			}
 
 			lista = lista.substring(0, lista.length() - 1);

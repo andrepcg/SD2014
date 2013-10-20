@@ -1,3 +1,5 @@
+package Loader;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -7,6 +9,8 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Iterator;
+
+import Util.RemoteHost;
 
 public class Ping extends Thread {
 

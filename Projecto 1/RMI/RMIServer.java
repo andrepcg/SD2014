@@ -1,8 +1,13 @@
+package RMI;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+
+import SQL.OracleJDBC;
+import Util.Topico;
+import Util.Transaccao;
 
 public class RMIServer extends UnicastRemoteObject implements RMI {
 	OracleJDBC oracle;
