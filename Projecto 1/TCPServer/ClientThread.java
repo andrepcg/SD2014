@@ -5,18 +5,22 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
 
 class ClientThread extends Thread {
 	private Socket clientSocket;
 	private DataOutputStream os;
 	private DataInputStream is;
+	private RMI rmi;
 
 	private ObjectOutputStream oos;
 
 	// private ObjectInputStream ois;
 
-	public ClientThread(Socket clientSocket) {
+	public ClientThread(Socket clientSocket, RMI rmi) {
 		this.clientSocket = clientSocket;
+		this.rmi = rmi;
 		try {
 			is = new DataInputStream(clientSocket.getInputStream());
 			os = new DataOutputStream(clientSocket.getOutputStream());
@@ -78,12 +82,56 @@ class ClientThread extends Thread {
 		} else if (input.matches("\\bLISTARTOPICOS\\b")) {
 
 			listarTopicos();
+		} else if (input.matches("\\bHISTORICOTRANSACCOES\\b")) {
+
+			historicoTransaccoes(input);
 		}
 	}
 
 	private void listarTopicos() {
-		String d = "TOPICOS|politica|ciencia|medicina";
-		enviarString(d);
+
+		try {
+			ArrayList<Topico> topicos = rmi.mostraTopicos();
+
+			String lista = "";
+
+			for (Topico t : topicos) {
+				lista += t.id + ";" + t.nome + "\\|";
+			}
+
+			lista = lista.substring(0, lista.length() - 1);
+
+			String d = "TOPICOS|" + lista;
+			enviarString(d);
+
+		} catch (RemoteException e) {
+
+		}
+
+	}
+
+	private void historicoTransaccoes(String input) {
+		String[] split = input.split("\\|");
+
+		ArrayList<Transaccao> ts = new ArrayList<>();
+		try {
+			ts = rmi.historicoTransaccoes(Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+
+			String lista = "";
+
+			// HISTORICOTRANSACCOES|idIdeia;numShares;preco;pago;tipo;timestamp
+			for (Transaccao t : ts) {
+				lista += t.getIdIdeia() + ";" + t.getNumShares() + ";" + t.getPreco() + ";" + t.getPago() + ";" + t.getTipo() + ";" + t.getTimestamp() + "\\|";
+			}
+
+			lista = lista.substring(0, lista.length() - 1);
+
+			String d = "HISTORICOTRANSACCOES|" + lista;
+			enviarString(d);
+
+		} catch (NumberFormatException | RemoteException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private boolean registar(String[] dadosRegisto) {
@@ -91,17 +139,22 @@ class ClientThread extends Thread {
 		String password = dadosRegisto[1];
 
 		// TODO acede RMI e regista user. registo com sucesso = true
+		boolean verf = false;
 
 		try {
-			Thread.sleep(150);
-			os.writeUTF("REGISTO|true");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
+			verf = rmi.registo(username, password);
+
+		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
+
+		try {
+			os.writeUTF("REGISTO|" + (verf ? "TRUE" : "FALSE"));
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+
 		return false;
 	}
 
@@ -111,15 +164,21 @@ class ClientThread extends Thread {
 
 		// TODO acede RMI e faz login ao user. login com sucesso = true
 
+		int verf = 0;
+
 		try {
-			Thread.sleep(150);
-			os.writeUTF("LOGIN|true");
-		} catch (IOException e) {
+			verf = rmi.login(username, password);
+		} catch (RemoteException e) {
 			e.printStackTrace();
-		} catch (InterruptedException e) {
+		}
+
+		try {
+			os.writeUTF("LOGIN|" + (verf > 0 ? "TRUE" : "FALSE"));
+		} catch (IOException e) {
 
 			e.printStackTrace();
 		}
+
 		return false;
 	}
 

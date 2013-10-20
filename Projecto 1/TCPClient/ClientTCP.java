@@ -49,8 +49,17 @@ public class ClientTCP {
 				System.out.print("Password: ");
 				String password = sc.nextLine();
 
-				if (socketThread.registar(username, password))
+				resposta = new Response();
+				socketThread.setResposta(resposta);
+				socketThread.registar(username, password);
+
+				if (dados(resposta).contains("TRUE")) {
+
 					System.out.println("## Registado com sucesso ##");
+				} else if (resposta.getResposta().contains("FALSE")) {
+					System.out.println("## Registado falhado ##");
+				}
+
 			} else if (input.startsWith("1")) {
 				System.out.print("Username: ");
 				String username = sc.nextLine();
@@ -87,11 +96,22 @@ public class ClientTCP {
 			input = sc.nextLine();
 
 			if (input.startsWith("1")) {
-				socketThread.adicionarPacote("LISTARTOPICOS");
+
+				socketThread.adicionarPacote("IDEIAS|0");
 				imprimirDados(dados(resposta), true);
-				// imprimirDados(socketThread.listarTopicos(), true);
-				// Thread.currentThread().wait();
+
 			} else if (input.startsWith("2")) {
+
+				// escrever ideia
+				// menu seleccionar topico(s)
+
+			} else if (input.startsWith("3")) {
+
+				// mostrar topicos
+				// escrever topico
+
+			} else if (input.startsWith("4")) {
+
 				int in = 0;
 				boolean ver = false;
 				while (!ver) {
@@ -105,11 +125,47 @@ public class ClientTCP {
 				}
 
 				socketThread.adicionarPacote("HISTORICOTRANSACCOES|" + utilizador.getId() + "|" + in);
-			} else if (input.startsWith("3")) {
+				imprimirTransaccoes(dados(resposta));
+
+			} else if (input.startsWith("5")) {
+
 				socketThread.adicionarPacote("IDEIAS|" + utilizador.getId());
 				imprimirDados(dados(resposta), true);
-			} else if (input.startsWith("4")) {
 
+			} else if (input.startsWith("6")) {
+
+				socketThread.adicionarPacote("SHARES|" + utilizador.getId());
+				imprimirDados(dados(resposta), true);
+
+			} else if (input.startsWith("7")) {
+
+				socketThread.adicionarPacote("LISTARTOPICOS");
+				imprimirTopicos(dados(resposta));
+
+			}
+		}
+
+	}
+
+	private void imprimirTransaccoes(String dados) {
+		// HISTORICOTRANSACCOES|idIdeia;numShares;preco_por_share;pago;tipo;timestamp
+		if (dados != null) {
+			String[] split = dados.split("\\|");
+
+			for (int i = 1; i < split.length; i++) {
+				String[] t = split[i].split(";");
+				System.out.println(t[0] + ". [" + t[4] + "] " + t[1] + " shares - " + t[2] + " /share - Total pago: " + t[3] + " (" + t[5] + ")");
+			}
+		}
+	}
+
+	private void imprimirTopicos(String dados) {
+		if (dados != null) {
+			String[] split = dados.split("\\|");
+
+			for (int i = 1; i < split.length; i++) {
+				String[] t = split[i].split(";");
+				System.out.println(t[0] + ". " + t[1]);
 			}
 		}
 
@@ -117,10 +173,13 @@ public class ClientTCP {
 
 	private void imprimirMenuPrincipal() {
 		System.out.println("\n## MENU ##");
-		System.out.println("1. Listar Topicos");
-		System.out.println("2. Historico de Transaccoes");
-		System.out.println("3. Minhas ideias");
-		System.out.println("4. Carteira de Shares");
+		System.out.println("1. Ver Ideias");
+		System.out.println("2. Criar Ideia");
+		System.out.println("3. Criar Topico");
+		System.out.println("4. Historico de Transaccoes");
+		System.out.println("5. Minhas ideias");
+		System.out.println("6. Carteira de Shares");
+		System.out.println("7. Listar Topicos");
 		// System.out.println("5. ");
 	}
 

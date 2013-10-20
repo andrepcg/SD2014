@@ -10,9 +10,11 @@ public class SocketThread extends Thread {
 	private ServerSocket serverSocket;
 	private int porta;
 	private Clientes listaClientes;
+	private RMI rmi;
 
-	public SocketThread(Server server, int porta) {
+	public SocketThread(int porta, RMI rmi) {
 		ligado = true;
+		this.rmi = rmi;
 		listaClientes = new Clientes();
 
 		try {
@@ -36,7 +38,7 @@ public class SocketThread extends Thread {
 
 				listaClientes.put(clientSocket.getInetAddress(), clientSocket.getPort());
 
-				ClientThread theClient = new ClientThread(clientSocket);
+				ClientThread theClient = new ClientThread(clientSocket, rmi);
 				theClient.start();
 
 			} catch (Exception e) {

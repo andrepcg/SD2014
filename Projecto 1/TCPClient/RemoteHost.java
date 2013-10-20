@@ -34,8 +34,10 @@ public class RemoteHost {
 	}
 
 	public RemoteHost(String host) {
-		this.host = host.split(":")[0];
-		this.port = new Integer(host.split(":")[1]).intValue();
+		if (host != null) {
+			this.host = host.split(":")[0];
+			this.port = new Integer(host.split(":")[1]).intValue();
+		}
 	}
 
 	public String toString() {

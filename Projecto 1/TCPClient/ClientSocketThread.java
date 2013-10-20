@@ -109,6 +109,9 @@ public class ClientSocketThread extends Thread {
 			}
 		} else if (input.startsWith("TOPICOS")) {
 			sincronizar(resposta, input);
+
+		} else if (input.startsWith("HISTORICOTRANSACCOES")) {
+			sincronizar(resposta, input);
 		}
 
 	}
