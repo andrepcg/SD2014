@@ -25,4 +25,6 @@ public interface RMI extends Remote {
 	public ArrayList<Transaccao> historicoTransaccoes(int idUser, int limit) throws RemoteException;
 
 	public ArrayList<Ideia> mostraIdeias(int idTopico, int idUser) throws RemoteException;
+
+	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) throws RemoteException;
 }

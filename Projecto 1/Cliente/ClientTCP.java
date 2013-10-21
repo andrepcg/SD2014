@@ -1,6 +1,8 @@
 package Cliente;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -173,23 +175,42 @@ public class ClientTCP {
 				System.out.println("\n[ TOPICO ] " + topicos[topicoActual - 1]);
 				imprimirIdeias(dados(resposta));
 
-				System.out.println("[C]riar Ideia\t");
+				System.out.println("[I]nserir Ideia - [C]omprar Ideia");
 				System.out.print(">> ");
 				String in = sc.nextLine();
-				menuTopico(in, topicoActual);
+				menuTopico(in, topicoActual, utilizador);
 			}
 		}
 
 	}
 
-	private void menuTopico(String comando, int topicoActual) {
+	private void menuTopico(String comando, int topicoActual, User utilizador) {
 
-		if (comando.equals("C"))
-			criarIdeia(topicoActual);
+		if (comando.equals("I") || comando.equals("i"))
+			criarIdeia(topicoActual, utilizador);
+		else if (comando.equals("C") || comando.equals("c"))
+			comprarIdeia();
 
 	}
 
-	private void criarIdeia(int topico) {
+	private void comprarIdeia() {
+		boolean verf = false;
+		int id = 0;
+		while (!verf) {
+			System.out.print("\nID Ideia >> ");
+			try {
+				id = Integer.parseInt(sc.nextLine());
+				verf = true;
+			} catch (Exception e) {
+
+			}
+		}
+
+		String compra = "COMPRAR_IDEIA|" + id;
+		socketThread.adicionarPacote(compra);
+	}
+
+	private void criarIdeia(int topico, User user) {
 		System.out.print("\nIdeia >> ");
 		String texto = sc.nextLine();
 
@@ -205,7 +226,7 @@ public class ClientTCP {
 			}
 		}
 
-		String ideia = "CRIAR_IDEIA|" + topico + "|" + texto + "|" + preco;
+		String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime();
 
 		socketThread.adicionarPacote(ideia);
 	}
@@ -304,6 +325,12 @@ public class ClientTCP {
 			for (int i = 1; i < split.length; i++)
 				System.out.println((indices ? i + ". " : "") + split[i]);
 		}
+	}
+
+	private String getTime() {
+		SimpleDateFormat date_format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		Calendar cal = Calendar.getInstance();
+		return date_format.format(cal.getTime());
 	}
 
 	private static String getHost(String args[]) {

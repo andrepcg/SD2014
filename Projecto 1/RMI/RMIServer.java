@@ -54,13 +54,9 @@ public class RMIServer extends UnicastRemoteObject implements RMI {
 		return oracle.mostraIdeias(idTopico, idUser);
 	}
 
-	/*
-	 * public ArrayList<Ideia> mostraIdeias(int idTopico) throws
-	 * RemoteException{ return oracle.mostraIdeias(idTopico);
-	 * 
-	 * 
-	 * }
-	 */
+	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) throws RemoteException {
+		return oracle.criarIdeia(idUser, idTopico, texto, preco, data);
+	}
 
 	public OracleJDBC connectDB() {
 		return new OracleJDBC();

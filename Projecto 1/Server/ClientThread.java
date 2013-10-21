@@ -115,8 +115,13 @@ class ClientThread extends Thread {
 
 	private void criarIdeia(String input) {
 		String[] split = input.split("\\|");
-		System.out.println(input);
-		// rmi.criarIdeia(split[1], split[2], Double.parseDouble(split[3]));
+		// iduser;topico;texto;preco;time
+		try {
+			rmi.criarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), split[5]);
+		} catch (NumberFormatException | RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	private void listarTopicos() {

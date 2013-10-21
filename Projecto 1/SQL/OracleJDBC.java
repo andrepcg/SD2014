@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 
 import Util.Ideia;
@@ -59,7 +60,7 @@ public class OracleJDBC {
 			// creating PreparedStatement object to execute query
 			PreparedStatement stm = connection.prepareStatement(sql);
 			stm.setString(1, user);
-			stm.setString(2, MD5(pass));
+			stm.setString(2, pass);
 
 			stm.executeUpdate();
 			return true;
@@ -180,17 +181,54 @@ public class OracleJDBC {
 		return ideias;
 	}
 
-	private String MD5(String md5) {
+	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) {
 		try {
-			java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-			byte[] array = md.digest(md5.getBytes());
-			StringBuffer sb = new StringBuffer();
-			for (int i = 0; i < array.length; ++i) {
-				sb.append(Integer.toHexString((array[i] & 0xFF) | 0x100).substring(1, 3));
+			int idIdeia = -1;
+			String sql = "Insert into ideia(idUser,texto,timestamp) values (?,?,?)";
+
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm.setInt(1, idUser);
+			stm.setString(2, texto);
+			stm.setTimestamp(3, Timestamp.valueOf(data));
+			stm.executeUpdate();
+
+			String sql2 = "Select id FROM ideia where idUser=? and texto=? and timestamp=?";
+			stm = connection.prepareStatement(sql2);
+			stm.setInt(1, idUser);
+			stm.setString(2, texto);
+			stm.setTimestamp(3, Timestamp.valueOf(data));
+			ResultSet rs = stm.executeQuery();
+			while (rs.next()) {
+				idIdeia = rs.getInt(1);
 			}
-			return sb.toString();
-		} catch (java.security.NoSuchAlgorithmException e) {
+			String sql3 = "Insert into ideiastopicos(idTopicos,idIdeia) values(?,?)";
+			stm = connection.prepareStatement(sql3);
+			stm.setInt(1, idTopico);
+			stm.setInt(2, idIdeia);
+			stm.executeUpdate();
+
+			String sql4 = "Insert into shares(idUser,idIdeia,num_shares) values(?,?,1000)";
+			stm = connection.prepareStatement(sql4);
+			stm.setInt(1, idUser);
+			stm.setInt(2, idIdeia);
+			stm.executeUpdate();
+
+			String sql5 = "Insert into ordensvenda(idIdeia,idUser,num_shares,preco,timestamp) values(?,?,?,?,?)";
+			stm = connection.prepareStatement(sql5);
+			stm.setInt(1, idIdeia);
+
+			stm.setInt(2, idUser);
+			stm.setInt(3, 1000);
+			stm.setDouble(4, preco);
+			stm.setTimestamp(5, Timestamp.valueOf(data));
+
+			stm.executeUpdate();
+
+			return true;
+		} catch (SQLException e) {
 		}
-		return null;
+		return false;
+
 	}
+
 }
