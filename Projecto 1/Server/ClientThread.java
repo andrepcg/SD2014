@@ -14,6 +14,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 
 import RMI.RMI;
+import Util.Ideia;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -84,22 +85,38 @@ class ClientThread extends Thread {
 		else if (input.matches("\\bREGISTAR\\|((\\w{4})\\w*)\\|([a-zA-Z0-9]{32})\\b")) {
 
 			registar(dadosRegistoLogin(input));
+
 		} else if (input.matches("\\bLOGIN\\|((\\w{4})\\w*)\\|([a-zA-Z0-9]{32})\\b")) {
 
 			login(dadosRegistoLogin(input));
-		} else if (input.matches("\\bLOGIN\\|((\\w{4})\\w*)\\|([a-zA-Z0-9]{32})\\b")) {
 
-			login(dadosRegistoLogin(input));
-		} else if (input.matches("\\bLISTARTOPICOS\\b")) {
+		} else if (input.startsWith("LISTARTOPICOS")) {
 
 			listarTopicos();
-		} else if (input.matches("\\bHISTORICOTRANSACCOES\\b")) {
+
+		} else if (input.startsWith("HISTORICO_TRANSACCOES")) {
 
 			historicoTransaccoes(input);
+
 		} else if (input.startsWith("RECEBER_FICHEIRO|")) {
 			String[] split = input.split("\\|");
 			receberFicheiro(split[1]);
+
+		} else if (input.startsWith("TOPICO_IDEIAS|")) {
+			listarIdeiasTopico(input);
+
+		} else if (input.startsWith("USER_IDEIAS|")) {
+			listarIdeiasUser(input);
+
+		} else if (input.startsWith("CRIAR_IDEIA|")) {
+			criarIdeia(input);
 		}
+	}
+
+	private void criarIdeia(String input) {
+		String[] split = input.split("\\|");
+		System.out.println(input);
+		// rmi.criarIdeia(split[1], split[2], Double.parseDouble(split[3]));
 	}
 
 	private void listarTopicos() {
@@ -109,9 +126,8 @@ class ClientThread extends Thread {
 
 			String lista = "";
 
-			for (Topico t : topicos) {
+			for (Topico t : topicos)
 				lista += t.getId() + ";" + t.getNome() + "\\|";
-			}
 
 			lista = lista.substring(0, lista.length() - 1);
 
@@ -124,6 +140,36 @@ class ClientThread extends Thread {
 
 	}
 
+	private void listarIdeiasUser(String input) {
+
+		try {
+			String[] split = input.split("\\|");
+			ArrayList<Ideia> ideias = rmi.mostraIdeias(0, Integer.parseInt(split[1]));
+
+			String d = ideiasFunc(ideias, "USER_IDEIAS");
+
+			enviarString(d);
+
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void listarIdeiasTopico(String input) {
+
+		try {
+			String[] split = input.split("\\|");
+			ArrayList<Ideia> ideias = rmi.mostraIdeias(Integer.parseInt(split[1]), 0);
+
+			String d = ideiasFunc(ideias, "TOPICOS_IDEIAS");
+
+			enviarString(d);
+
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private void historicoTransaccoes(String input) {
 		String[] split = input.split("\\|");
 
@@ -131,20 +177,48 @@ class ClientThread extends Thread {
 		try {
 			ts = rmi.historicoTransaccoes(Integer.parseInt(split[1]), Integer.parseInt(split[2]));
 
-			String lista = "";
+			if (ts.size() > 0) {
+				String lista = "";
 
-			// HISTORICOTRANSACCOES|idIdeia;numShares;preco;pago;tipo;timestamp
-			for (Transaccao t : ts) {
-				lista += t.getIdIdeia() + ";" + t.getNumShares() + ";" + t.getPreco() + ";" + t.getPago() + ";" + t.getTipo() + ";" + t.getTimestamp() + "\\|";
+				// HISTORICOTRANSACCOES|idIdeia;numShares;preco;pago;tipo;timestamp
+				for (Transaccao t : ts) {
+					lista += t.getIdIdeia() + ";" + t.getNumShares() + ";" + t.getPreco() + ";" + t.getPago() + ";" + t.getTipo() + ";" + t.getTimestamp() + "\\|";
+				}
+
+				lista = lista.substring(0, lista.length() - 1);
+
+				String d = "HISTORICO_TRANSACCOES|" + lista;
+				enviarString(d);
+			} else {
+
+				String d = "HISTORICO_TRANSACCOES|0";
+				enviarString(d);
 			}
-
-			lista = lista.substring(0, lista.length() - 1);
-
-			String d = "HISTORICOTRANSACCOES|" + lista;
-			enviarString(d);
 
 		} catch (NumberFormatException | RemoteException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private String ideiasFunc(ArrayList<Ideia> ideias, String comando) {
+		if (ideias.size() > 0) {
+			String lista = "";
+
+			for (Ideia t : ideias)
+				lista += t.getIdIdeia() + ";" + t.getUsername() + ";" + t.getTexto() + ";" + t.getData() + "\\|";
+
+			if (lista.length() > 0)
+				lista = lista.substring(0, lista.length() - 1);
+
+			// USER_IDEIAS|id;username;texto;timestamp
+			String d = comando + "|" + lista;
+			return d;
+
+		} else {
+
+			String d = comando + "|0";
+			return d;
+
 		}
 	}
 
@@ -198,7 +272,6 @@ class ClientThread extends Thread {
 
 		try {
 			verf = rmi.login(username, password);
-			System.out.println("Login verf= " + verf);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}

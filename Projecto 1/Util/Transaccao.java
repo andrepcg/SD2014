@@ -1,7 +1,9 @@
 package Util;
+
+import java.io.Serializable;
 import java.sql.Timestamp;
 
-public class Transaccao {
+public class Transaccao implements Serializable {
 	private int idIdeia;
 	private int idUser;
 	private int numShares;

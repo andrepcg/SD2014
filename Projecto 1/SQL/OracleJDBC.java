@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import Util.Ideia;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -30,9 +31,9 @@ public class OracleJDBC {
 		}
 
 		try {
+			String url = "jdbc:mysql://andrepcg.myftp.org:3306/sd?user=sd&password=123456";
 			// String url =
-			// "jdbc:mysql://andrepcg.myftp.org:3306/sd?user=sd&password=123456";
-			String url = "jdbc:mysql://localhost:3306/sd?user=sd&password=123456";
+			// "jdbc:mysql://localhost:3306/sd?user=sd&password=123456";
 			connection = DriverManager.getConnection(url);
 
 		} catch (SQLException e) {
@@ -113,14 +114,15 @@ public class OracleJDBC {
 		ResultSet rs;
 		ArrayList<Transaccao> ts = new ArrayList<Transaccao>();
 		try {
-			String sql = "Select * from historicotransaccoes WHERE idUser = ? ORDER BY date DESC LIMIT ?";
+			String sql = "Select * from historicotransaccoes WHERE idUser = ? ORDER BY timestamp DESC LIMIT ?";
 			stm = connection.prepareStatement(sql);
 			stm.setInt(1, idUser);
 			stm.setInt(2, limit);
 			rs = stm.executeQuery();
 			while (rs.next()) {
-				ts.add(new Transaccao(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getDouble(4), rs.getDouble(5), rs.getString(6), rs.getTimestamp(7)));
+				ts.add(new Transaccao(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getDouble(6), rs.getString(7), rs.getTimestamp(8)));
 			}
+
 		} catch (SQLException e) {
 			// TODO: handle exception
 		}
@@ -130,7 +132,7 @@ public class OracleJDBC {
 	public ArrayList<Topico> mostraTopicos() {
 		ArrayList<Topico> topicos = new ArrayList<Topico>();
 		try {
-			String sql = "Select * from topicos";
+			String sql = "Select * from topicos ORDER BY id";
 			PreparedStatement stm = connection.prepareStatement(sql);
 			ResultSet rs = stm.executeQuery();
 			while (rs.next()) {
@@ -142,6 +144,40 @@ public class OracleJDBC {
 		}
 		return topicos;
 
+	}
+
+	public ArrayList<Ideia> mostraIdeias(int idTopico, int idUser) {
+		ArrayList<Ideia> ideias = new ArrayList<Ideia>();
+		try {
+
+			String sql = "";
+			PreparedStatement stm = null;
+
+			if (idTopico > 0 && idUser == 0) {
+				sql = "Select * from ideia,ideiastopicos,utilizadores where ideia.id=ideiastopicos.idIdeia and ideiastopicos.idTopicos=? and ideia.idUser = utilizadores.id";
+				stm = connection.prepareStatement(sql);
+				stm.setInt(1, idTopico);
+
+			} else if (idTopico == 0 && idUser > 0) {
+				sql = "Select * from ideia,ideiastopicos,utilizadores where ideia.id=ideiastopicos.idIdeia and ideia.idUser = utilizadores.id and ideia.idUser = ?";
+				stm = connection.prepareStatement(sql);
+				stm.setInt(1, idUser);
+
+			} else if (idTopico > 0 && idUser > 0) {
+				sql = "Select * from ideia,ideiastopicos,utilizadores where ideia.id=ideiastopicos.idIdeia and ideiastopicos.idTopicos=? and ideia.idUser = utilizadores.id and ideia.idUser = ?";
+				stm = connection.prepareStatement(sql);
+				stm.setInt(1, idTopico);
+				stm.setInt(2, idUser);
+			}
+
+			ResultSet rs = stm.executeQuery();
+			while (rs.next()) {
+				ideias.add(new Ideia(rs.getInt(1), rs.getInt(2), rs.getString(9), rs.getString(3), rs.getTimestamp(4)));
+			}
+
+		} catch (SQLException e) {
+		}
+		return ideias;
 	}
 
 	private String MD5(String md5) {

@@ -5,6 +5,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 
 import SQL.OracleJDBC;
+import Util.Ideia;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -22,6 +23,6 @@ public interface RMI extends Remote {
 	public ArrayList<Topico> mostraTopicos() throws RemoteException;
 
 	public ArrayList<Transaccao> historicoTransaccoes(int idUser, int limit) throws RemoteException;
-	// public ArrayList<Ideia> mostraIdeias(int idTopico) throws
-	// RemoteException;
+
+	public ArrayList<Ideia> mostraIdeias(int idTopico, int idUser) throws RemoteException;
 }

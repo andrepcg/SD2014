@@ -55,8 +55,8 @@ public class ClientSocketThread extends Thread {
 
 		server = getServerFromLoader();
 		if (server != null) {
-			if (connectSocket())
-				System.out.println("## Ligado ##\n");
+			connectSocket();
+			// System.out.println("## Ligado ##\n");
 		}
 
 		inThread = new Thread(new inbound());
@@ -121,11 +121,7 @@ public class ClientSocketThread extends Thread {
 				sincronizar(resposta, "TRUE");
 			}
 
-		} else if (input.startsWith("TOPICOS")) {
-
-			sincronizar(resposta, input);
-
-		} else if (input.startsWith("HISTORICOTRANSACCOES")) {
+		} else {
 			sincronizar(resposta, input);
 		}
 
@@ -138,12 +134,12 @@ public class ClientSocketThread extends Thread {
 		}
 	}
 
-	public boolean registar(String username, String password) {
-		password = md5(password);
-
-		adicionarPacote("REGISTAR|" + username + "|" + password);
-
-	}
+	// public boolean registar(String username, String password) {
+	// password = md5(password);
+	//
+	// adicionarPacote("REGISTAR|" + username + "|" + password);
+	//
+	// }
 
 	public void login(String username, String password) {
 
@@ -193,13 +189,13 @@ public class ClientSocketThread extends Thread {
 			this.server = getServerFromLoader();
 			if (server != null)
 				return connectSocket();
+			else
+				return false;
 		} else {
 			System.out.println("## Ligacao restabelecida ##\n");
 			ligado = true;
 			return true;
 		}
-
-		return false;
 	}
 
 	private boolean connectSocket() {
@@ -215,13 +211,13 @@ public class ClientSocketThread extends Thread {
 			// pw = new PrintWriter(s.getOutputStream(), true);
 
 			ligado = true;
-			System.out.println("## Ligado ao servidor ##\n");
+			// System.out.println("## Ligado ao servidor ##\n");
 			return true;
 		} catch (UnknownHostException e) {
 
 			// e.printStackTrace();
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 
 			// e.printStackTrace();
 		}
@@ -261,8 +257,11 @@ public class ClientSocketThread extends Thread {
 			if (data.startsWith("S")) {
 				RemoteHost server;
 				String[] split = data.split(";");
-				server = new RemoteHost(split[1], split[2]);
-				return server;
+				if (!split[1].contains("null")) {
+					server = new RemoteHost(split[1], split[2]);
+					return server;
+				} else
+					server = null;
 			}
 		} catch (IOException e) {
 
@@ -337,13 +336,17 @@ public class ClientSocketThread extends Thread {
 					p = outboundPacketQueue.take();
 				} catch (InterruptedException ie) {
 				}
-				if (p != null) {
-					// sock.getOutputStream().write(p.getEncodedPacket());
-					try {
-						os.writeUTF(p);
-					} catch (IOException e) {
 
-						reconnect();
+				if (p != null) {
+					boolean enviado = false;
+					while (!enviado) {
+						try {
+							os.writeUTF(p);
+							enviado = true;
+						} catch (Exception e) {
+
+							reconnect();
+						}
 					}
 				}
 			}

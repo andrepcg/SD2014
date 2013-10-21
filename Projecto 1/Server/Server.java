@@ -1,4 +1,5 @@
 package Server;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -23,6 +24,7 @@ public class Server {
 	boolean ligado = true;
 	SocketThread socketThread;
 	RMI rmi;
+	static RemoteHost rmihost;
 	boolean rmiON;
 
 	public static void main(String[] args) {
@@ -30,37 +32,29 @@ public class Server {
 		porta = getPort(args);
 		String loader = getHost(args);
 		primario = checkIfPrimary(args);
-		String rmihost = getRMI(args);
+		rmihost = new RemoteHost(getRMI(args));
 
 		// porta = 5000;
 		// String loader = "localhost:9000";
 		// boolean primary = true;
 
 		if (loader != null && porta > 0 && rmihost != null) {
-			new Server(loader, rmihost);
+			new Server(loader);
 		}
 
 	}
 
-	public Server(String loader, String rmi) {
+	public Server(String loader) {
+
+		ligarRMI();
 
 		connect(loader);
-		RemoteHost rmihost = new RemoteHost(rmi);
-
-		try {
-			this.rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
-			rmiON = true;
-		} catch (NotBoundException e) {
-			System.out.println("Not bound");
-		} catch (RemoteException e) {
-
-		}
 
 		if (rmiON) {
 			failover = new Failover(this, porta);
 			failover.start();
 
-			socketThread = new SocketThread(porta, this.rmi);
+			socketThread = new SocketThread(this, porta, this.rmi);
 			socketThread.start();
 		}
 
@@ -75,6 +69,19 @@ public class Server {
 			}
 
 		}
+	}
+
+	public boolean ligarRMI() {
+		try {
+			this.rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
+			rmiON = true;
+			return true;
+		} catch (NotBoundException e) {
+			System.out.println("Not bound");
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 
 	public void setPrimario(boolean b) {

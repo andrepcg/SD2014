@@ -7,6 +7,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 
 import SQL.OracleJDBC;
+import Util.Ideia;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -47,6 +48,10 @@ public class RMIServer extends UnicastRemoteObject implements RMI {
 
 	public ArrayList<Transaccao> historicoTransaccoes(int idUser, int limit) throws RemoteException {
 		return oracle.transaccoes(idUser, limit);
+	}
+
+	public ArrayList<Ideia> mostraIdeias(int idTopico, int idUser) throws RemoteException {
+		return oracle.mostraIdeias(idTopico, idUser);
 	}
 
 	/*

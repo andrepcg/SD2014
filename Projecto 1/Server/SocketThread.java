@@ -1,4 +1,5 @@
 package Server;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -16,7 +17,7 @@ public class SocketThread extends Thread {
 	private Clientes listaClientes;
 	private RMI rmi;
 
-	public SocketThread(int porta, RMI rmi) {
+	public SocketThread(Server server, int porta, RMI rmi) {
 		ligado = true;
 		this.rmi = rmi;
 		listaClientes = new Clientes();

@@ -4,13 +4,11 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.ArrayList;
 
 import Util.RemoteHost;
 
 public class Loader {
 
-	private ArrayList<RemoteHost> servidores;
 	private DatagramSocket serverSocket;
 	boolean ligado;
 	RemoteHost primario;
@@ -24,7 +22,6 @@ public class Loader {
 
 	public Loader(int porta) {
 
-		servidores = new ArrayList<RemoteHost>();
 		ligado = true;
 
 		try {
@@ -35,7 +32,7 @@ public class Loader {
 			System.out.println("Erro criar socket UDP");
 		}
 
-		threadPing = new Ping(servidores);
+		threadPing = new Ping();
 		threadPing.start();
 
 		while (ligado) {
@@ -53,12 +50,12 @@ public class Loader {
 				if (connect.startsWith("S")) {
 					int port = receivePacket.getPort();
 					RemoteHost s = new RemoteHost(ip, port);
-					servidores.add(s);
-					if (connect.contains("primario") || servidores.size() == 0) {
+					threadPing.addServidor(s);
+					if (connect.contains("primario") || threadPing.serverSize() == 0) {
 						primario = s;
 						threadPing.setPrimario(s);
 					}
-					System.out.println("Server " + ((connect.contains("primario") || servidores.size() == 1) ? "primario " : "") + "ligado " + ip + " " + port);
+					System.out.println("Server " + ((connect.contains("primario") || threadPing.serverSize() == 1) ? "primario " : "") + "ligado " + ip + " " + port);
 
 				} else if (connect.startsWith("C")) {
 					System.out.println("Cliente ligado");
@@ -75,7 +72,10 @@ public class Loader {
 	private void sendClientPrimario(DatagramPacket receivePacket) throws IOException {
 		byte[] enviar = new byte[200];
 		RemoteHost p = threadPing.getPrimario();
-		enviar = ("S;" + p.getHost() + ";" + p.getPort() + ";").getBytes();
+		if (p != null)
+			enviar = ("S;" + p.getHost() + ";" + p.getPort() + ";").getBytes();
+		else
+			enviar = ("S;null").getBytes();
 
 		DatagramPacket sendPacket = new DatagramPacket(enviar, enviar.length, receivePacket.getAddress(), receivePacket.getPort());
 		serverSocket.send(sendPacket);
@@ -83,7 +83,7 @@ public class Loader {
 
 	// TODO vai dar bode quando servers tem mesmo ip
 	private RemoteHost getServer(String ip) {
-		for (RemoteHost server : servidores) {
+		for (RemoteHost server : threadPing.getServers()) {
 			if (server.getHost().compareTo(ip) == 0)
 				return server;
 		}

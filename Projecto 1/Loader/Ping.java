@@ -18,9 +18,9 @@ public class Ping extends Thread {
 	private ArrayList<RemoteHost> servidores;
 	private RemoteHost primario;
 
-	public Ping(ArrayList servidores) {
+	public Ping() {
 
-		this.servidores = servidores;
+		this.servidores = new ArrayList<RemoteHost>();
 		this.running = true;
 	}
 
@@ -35,21 +35,41 @@ public class Ping extends Thread {
 				e.printStackTrace();
 			}
 
-			for (Iterator<RemoteHost> it = servidores.iterator(); it.hasNext();) {
-				RemoteHost server = it.next();
+			Iterator<RemoteHost> iterator = servidores.iterator();
+			while (iterator.hasNext()) {
+				RemoteHost server = iterator.next();
 				if (!ping(server.getHost(), server.getPort())) {
 					if (server.equals(primario)) {
-						if (servidores.size() > 0) {
+						// int x = servidores.size();
+						if (servidores.size() > 1) {
 							primario = servidores.get(1);
 							System.out.println(primario + " promovido a principal");
 						} else
 							primario = null;
 					}
-					it.remove();
+					iterator.remove();
 
 					System.out.println("server removido " + server);
 				}
 			}
+
+			// for (Iterator<RemoteHost> it = servidores.iterator();
+			// it.hasNext();) {
+			// RemoteHost server = it.next();
+			// if (!ping(server.getHost(), server.getPort())) {
+			// if (server.equals(primario)) {
+			// int x = servidores.size();
+			// if (servidores.size() > 1) {
+			// primario = servidores.get(1);
+			// System.out.println(primario + " promovido a principal");
+			// } else
+			// primario = null;
+			// }
+			// it.remove();
+			//
+			// System.out.println("server removido " + server);
+			// }
+			// }
 
 		}
 	}
@@ -60,6 +80,18 @@ public class Ping extends Thread {
 
 	public RemoteHost getPrimario() {
 		return primario;
+	}
+
+	public void addServidor(RemoteHost r) {
+		servidores.add(r);
+	}
+
+	public int serverSize() {
+		return servidores.size();
+	}
+
+	public ArrayList<RemoteHost> getServers() {
+		return servidores;
 	}
 
 	private boolean ping(String ip, int port) {
