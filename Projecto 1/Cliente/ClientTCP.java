@@ -27,7 +27,7 @@ public class ClientTCP {
 	}
 
 	public ClientTCP(RemoteHost remoteHost) {
-		socketThread = new ClientSocketThread(this, remoteHost);
+		socketThread = new ClientSocketThread(remoteHost);
 		socketThread.start();
 
 		Response resposta = null;
@@ -83,7 +83,9 @@ public class ClientTCP {
 				socketThread.login(username, password);
 
 				if (dados(resposta).contains("TRUE")) {
-					utilizador = criarUser(resposta.getResposta());
+					// utilizador = criarUser(resposta.getResposta());
+					System.out.println(resposta.getResposta());
+					utilizador = new User(resposta.getResposta());
 					logado = true;
 					System.out.println("## Login com sucesso ##");
 				} else if (resposta.getResposta().contains("FALSE")) {

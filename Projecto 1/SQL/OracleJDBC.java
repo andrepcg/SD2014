@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 import Util.Topico;
 import Util.Transaccao;
+import Util.User;
 
 public class OracleJDBC {
 
@@ -29,20 +30,22 @@ public class OracleJDBC {
 		}
 
 		try {
-			String url = "jdbc:mysql://andrepcg.myftp.org:3306/sd?user=sd&password=123456";
+			// String url =
+			// "jdbc:mysql://andrepcg.myftp.org:3306/sd?user=sd&password=123456";
+			String url = "jdbc:mysql://localhost:3306/sd?user=sd&password=123456";
 			connection = DriverManager.getConnection(url);
 
 		} catch (SQLException e) {
-			System.out.println("Falhou a conexão");
+			System.out.println("Falhou a conexao");
 			e.printStackTrace();
 			return;
 		}
 
 		if (connection != null) {
-			System.out.println("Conexão feita com sucesso");
+			System.out.println("Conexao feita com sucesso");
 
 		} else {
-			System.out.println("Falhou a conexão!");
+			System.out.println("Falhou a conexao!");
 		}
 	}
 
@@ -64,26 +67,29 @@ public class OracleJDBC {
 		}
 	}
 
-	public int login(String user, String pass) {
+	public User login(String user, String pass) {
+
+		User usera = null;
 
 		try {
 
 			ResultSet rs;
 			PreparedStatement stm = null;
-			String sql = "Select id,username,password from utilizadores where username=? and password=?";
+			String sql = "Select * from utilizadores where username=? and password=?";
 			stm = connection.prepareStatement(sql);
 			stm.setString(1, user);
-			stm.setString(2, MD5(pass));
+			stm.setString(2, pass);
 
 			rs = stm.executeQuery();
+
 			while (rs.next()) {
-				System.out.println(rs.getInt(1));
+				usera = new User(rs.getInt(1), rs.getString(2), rs.getDouble(4));
 			}
 		} catch (SQLException e) {
 			System.out.println(e.getMessage());
 
 		}
-		return -1;
+		return usera;
 	}
 
 	public boolean criarTopico(String nome) {
