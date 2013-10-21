@@ -1,4 +1,5 @@
 package Server;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import RMI.RMI;
 import Util.Topico;
 import Util.Transaccao;
+import Util.User;
 
 class ClientThread extends Thread {
 	private Socket clientSocket;
@@ -71,7 +73,7 @@ class ClientThread extends Thread {
 
 	private void comandos(String input) {
 
-		System.out.println(input);
+		// System.out.println(input);
 		if (input.contains("heartbeat"))
 			heartbeat();
 
@@ -169,16 +171,17 @@ class ClientThread extends Thread {
 
 		// TODO acede RMI e faz login ao user. login com sucesso = true
 
-		int verf = 0;
+		User verf = null;
 
 		try {
 			verf = rmi.login(username, password);
+			System.out.println("Login verf= " + verf);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
 
 		try {
-			os.writeUTF("LOGIN|" + (verf > 0 ? "TRUE" : "FALSE"));
+			os.writeUTF("LOGIN|" + (verf != null ? ("TRUE" + "|" + verf.getId() + "|" + verf.getUsername() + "|" + verf.getDeicoins()) : "FALSE"));
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -189,7 +192,7 @@ class ClientThread extends Thread {
 
 	private String[] dadosRegistoLogin(String input) {
 		String[] x = new String[2];
-		String[] split = input.split("|");
+		String[] split = input.split("\\|");
 		x[0] = split[1];
 		x[1] = split[2];
 		return x;

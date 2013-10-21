@@ -1,4 +1,5 @@
 package RMI;
+
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import SQL.OracleJDBC;
 import Util.Topico;
 import Util.Transaccao;
+import Util.User;
 
 public class RMIServer extends UnicastRemoteObject implements RMI {
 	OracleJDBC oracle;
@@ -27,7 +29,7 @@ public class RMIServer extends UnicastRemoteObject implements RMI {
 
 	}
 
-	public int login(String user, String password) throws RemoteException {
+	public User login(String user, String password) throws RemoteException {
 
 		return oracle.login(user, password);
 

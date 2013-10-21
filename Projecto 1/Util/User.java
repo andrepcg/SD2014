@@ -1,5 +1,8 @@
 package Util;
-public class User {
+
+import java.io.Serializable;
+
+public class User implements Serializable {
 
 	private int id;
 	private String username;
@@ -9,6 +12,15 @@ public class User {
 		this.id = id;
 		this.username = username;
 		this.deicoins = deicoins;
+	}
+
+	public User(String user) {
+		user = user.replace("LOGIN|TRUE|", "");
+		String[] split = user.split("\\|");
+
+		this.id = Integer.parseInt(split[0]);
+		this.username = split[1];
+		this.deicoins = Double.parseDouble(split[2]);
 	}
 
 	public int getId() {
@@ -34,4 +46,9 @@ public class User {
 	public void setDeicoins(double deicoins) {
 		this.deicoins = deicoins;
 	}
+
+	public String toString() {
+		return id + " " + username + " " + deicoins;
+	}
+
 }

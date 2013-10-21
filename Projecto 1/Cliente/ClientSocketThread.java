@@ -1,4 +1,5 @@
 package Cliente;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -20,7 +21,6 @@ public class ClientSocketThread extends Thread {
 	private boolean running;
 	private DataOutputStream os;
 	private DataInputStream is;
-	private ClientTCP c;
 	private RemoteHost loader;
 	private RemoteHost server;
 
@@ -41,8 +41,7 @@ public class ClientSocketThread extends Thread {
 	private boolean heartBeatEnviado = false;
 	private boolean heartBeatRecebido = false;
 
-	public ClientSocketThread(ClientTCP c, RemoteHost loader) {
-		this.c = c;
+	public ClientSocketThread(RemoteHost loader) {
 		this.loader = loader;
 		running = true;
 
@@ -104,14 +103,21 @@ public class ClientSocketThread extends Thread {
 			heartBeatRecebido = true;
 
 		} else if (input.contains("LOGIN")) {
-			if (input.contains("true")) {
-				sincronizar(resposta, "TRUE");
-			}
+
+			if (input.contains("TRUE"))
+				sincronizar(resposta, input);
+
+			else if (input.contains("FALSE"))
+				sincronizar(resposta, "FALSE");
+
 		} else if (input.contains("REGISTAR")) {
+
 			if (input.contains("true")) {
 				sincronizar(resposta, "TRUE");
 			}
+
 		} else if (input.startsWith("TOPICOS")) {
+
 			sincronizar(resposta, input);
 
 		} else if (input.startsWith("HISTORICOTRANSACCOES")) {

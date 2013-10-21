@@ -1,4 +1,5 @@
 package RMI;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -6,6 +7,7 @@ import java.util.ArrayList;
 import SQL.OracleJDBC;
 import Util.Topico;
 import Util.Transaccao;
+import Util.User;
 
 public interface RMI extends Remote {
 
@@ -13,7 +15,7 @@ public interface RMI extends Remote {
 
 	public boolean registo(String user, String pass) throws RemoteException;
 
-	public int login(String user, String password) throws RemoteException;
+	public User login(String user, String password) throws RemoteException;
 
 	public boolean criarTopico(String nome) throws RemoteException;
 
