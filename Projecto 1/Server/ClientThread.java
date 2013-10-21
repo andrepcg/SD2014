@@ -1,9 +1,12 @@
 package Server;
 
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
@@ -24,6 +27,7 @@ class ClientThread extends Thread {
 	private ObjectOutputStream oos;
 
 	// private ObjectInputStream ois;
+	private InputStream in;
 
 	public ClientThread(Socket clientSocket, RMI rmi) {
 		this.clientSocket = clientSocket;
@@ -31,7 +35,7 @@ class ClientThread extends Thread {
 		try {
 			is = new DataInputStream(clientSocket.getInputStream());
 			os = new DataOutputStream(clientSocket.getOutputStream());
-			oos = new ObjectOutputStream(clientSocket.getOutputStream());
+			in = clientSocket.getInputStream();
 			// ois = new ObjectInputStream(clientSocket.getInputStream());
 
 		} catch (IOException e) {
@@ -92,6 +96,9 @@ class ClientThread extends Thread {
 		} else if (input.matches("\\bHISTORICOTRANSACCOES\\b")) {
 
 			historicoTransaccoes(input);
+		} else if (input.startsWith("RECEBER_FICHEIRO|")) {
+			String[] split = input.split("\\|");
+			receberFicheiro(split[1]);
 		}
 	}
 
@@ -139,6 +146,22 @@ class ClientThread extends Thread {
 		} catch (NumberFormatException | RemoteException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void receberFicheiro(String nome) {
+		byte[] mybytearray = new byte[1024];
+
+		try {
+			FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "\\ficheiros\\" + nome);
+			BufferedOutputStream bos = new BufferedOutputStream(fos);
+			int bytesRead = in.read(mybytearray, 0, mybytearray.length);
+			bos.write(mybytearray, 0, bytesRead);
+			bos.close();
+			System.out.println("Ficheiro recebido! " + System.getProperty("user.dir") + "\\ficheiros\\" + nome);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 	private boolean registar(String[] dadosRegisto) {

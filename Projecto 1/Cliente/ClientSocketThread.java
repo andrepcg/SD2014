@@ -1,8 +1,13 @@
 package Cliente;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
@@ -51,7 +56,7 @@ public class ClientSocketThread extends Thread {
 		server = getServerFromLoader();
 		if (server != null) {
 			if (connectSocket())
-				System.out.println("## Ligado ##");
+				System.out.println("## Ligado ##\n");
 		}
 
 		inThread = new Thread(new inbound());
@@ -110,9 +115,9 @@ public class ClientSocketThread extends Thread {
 			else if (input.contains("FALSE"))
 				sincronizar(resposta, "FALSE");
 
-		} else if (input.contains("REGISTAR")) {
+		} else if (input.contains("REGISTO")) {
 
-			if (input.contains("true")) {
+			if (input.contains("TRUE")) {
 				sincronizar(resposta, "TRUE");
 			}
 
@@ -135,19 +140,34 @@ public class ClientSocketThread extends Thread {
 
 	public boolean registar(String username, String password) {
 		password = md5(password);
-		try {
-			os.writeUTF("REGISTAR|" + username + "|" + password);
-			boolean sucesso = is.readBoolean();
-			return sucesso;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return false;
+
+		adicionarPacote("REGISTAR|" + username + "|" + password);
+
 	}
 
 	public void login(String username, String password) {
 
-		outboundPacketQueue.add("LOGIN|" + username + "|" + md5(password));
+		adicionarPacote("LOGIN|" + username + "|" + md5(password));
+	}
+
+	private void enviarFicheiro(String dir) {
+		try {
+			File file = new File(dir);
+			adicionarPacote("RECEBER_FICHEIRO" + file.getName() + "|" + file.length());
+
+			byte[] mybytearray = new byte[(int) file.length()];
+			BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+			bis.read(mybytearray, 0, mybytearray.length);
+			OutputStream os = s.getOutputStream();
+			os.write(mybytearray, 0, mybytearray.length);
+			os.flush();
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
 	}
 
 	public String listarTopicos() {
@@ -174,7 +194,7 @@ public class ClientSocketThread extends Thread {
 			if (server != null)
 				return connectSocket();
 		} else {
-			System.out.println("## Ligacao restabelecida ##");
+			System.out.println("## Ligacao restabelecida ##\n");
 			ligado = true;
 			return true;
 		}
@@ -195,7 +215,7 @@ public class ClientSocketThread extends Thread {
 			// pw = new PrintWriter(s.getOutputStream(), true);
 
 			ligado = true;
-			System.out.println("## Ligado ao servidor ##");
+			System.out.println("## Ligado ao servidor ##\n");
 			return true;
 		} catch (UnknownHostException e) {
 
@@ -322,8 +342,7 @@ public class ClientSocketThread extends Thread {
 					try {
 						os.writeUTF(p);
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						// e.printStackTrace();
+
 						reconnect();
 					}
 				}
