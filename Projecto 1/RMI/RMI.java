@@ -6,6 +6,7 @@ import java.util.ArrayList;
 
 import SQL.OracleJDBC;
 import Util.Ideia;
+import Util.Mercado;
 import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
@@ -27,7 +28,11 @@ public interface RMI extends Remote {
 
 	public ArrayList<Ideia> mostraIdeias(int idTopico, int idUser) throws RemoteException;
 
-	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) throws RemoteException;
+	public int criarIdeia(int idUser, int idTopico, String texto, double preco, String data) throws RemoteException;
 
 	public ArrayList<Share> seleccionarShares(int idUser) throws RemoteException;
+
+	public boolean inserirFicheiro(int idIdeia, String path) throws RemoteException;
+
+	public Mercado mercadoShares(int idIdeia) throws RemoteException;
 }

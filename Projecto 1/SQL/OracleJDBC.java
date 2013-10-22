@@ -9,6 +9,9 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 
 import Util.Ideia;
+import Util.Mercado;
+import Util.OrdemCompra;
+import Util.OrdemVenda;
 import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
@@ -201,7 +204,7 @@ public class OracleJDBC {
 		return shares;
 	}
 
-	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) {
+	public int criarIdeia(int idUser, int idTopico, String texto, double preco, String data) {
 		try {
 			int idIdeia = -1;
 			String sql = "Insert into ideia(idUser,texto,timestamp) values (?,?,?)";
@@ -233,7 +236,7 @@ public class OracleJDBC {
 			stm.setInt(2, idIdeia);
 			stm.executeUpdate();
 
-			String sql5 = "Insert into ordensvenda(idIdeia,idUser,num_shares,preco,timestamp) values(?,?,?,?,?)";
+			String sql5 = "Insert into ordensvenda(idIdeia,idUser,num_shares,preco_por_share,timestamp) values(?,?,?,?,?)";
 			stm = connection.prepareStatement(sql5);
 			stm.setInt(1, idIdeia);
 
@@ -244,11 +247,58 @@ public class OracleJDBC {
 
 			stm.executeUpdate();
 
-			return true;
+			return idIdeia;
 		} catch (SQLException e) {
 		}
-		return false;
 
+		return -1;
+
+	}
+
+	public Mercado mercadoShares(int idIdeia) {
+		Mercado mercado = new Mercado();
+		try {
+			String sql = "SELECT * FROM ordenscompra WHERE idIdeia = ?";
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+
+			ResultSet rs = stm.executeQuery();
+			while (rs.next()) {
+				mercado.addOrdemCompra(new OrdemCompra(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+			}
+
+			sql = "SELECT * FROM ordensvenda WHERE idIdeia = ?";
+			stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+
+			rs = stm.executeQuery();
+			while (rs.next()) {
+				mercado.addOrdemVenda(new OrdemVenda(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+			}
+
+			return mercado;
+
+		} catch (SQLException e) {
+
+		}
+
+		return null;
+	}
+
+	public boolean inserirFicheiro(int idIdeia, String path) {
+
+		try {
+			String sql = "INSERT into ficheiros (idIdeia,ficheiro) values(?,?)";
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+			stm.setString(2, path);
+			stm.executeUpdate();
+			return true;
+		} catch (SQLException e) {
+
+		}
+
+		return false;
 	}
 
 }

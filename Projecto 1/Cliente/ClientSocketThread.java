@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -54,6 +55,10 @@ public class ClientSocketThread extends Thread {
 		inboundPacketQueue = new LinkedBlockingQueue<String>();
 
 		server = getServerFromLoader();
+		// synchronized (server) {
+		// server.notify();
+		// }
+
 		if (server != null) {
 			connectSocket();
 			// System.out.println("## Ligado ##\n");
@@ -146,10 +151,11 @@ public class ClientSocketThread extends Thread {
 		adicionarPacote("LOGIN|" + username + "|" + md5(password));
 	}
 
-	private void enviarFicheiro(String dir) {
+	public void enviarFicheiro(String dir) {
 		try {
 			File file = new File(dir);
-			adicionarPacote("RECEBER_FICHEIRO" + file.getName() + "|" + file.length());
+			// adicionarPacote("RECEBER_FICHEIRO" + file.getName() + "|" +
+			// file.length());
 
 			byte[] mybytearray = new byte[(int) file.length()];
 			BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
@@ -260,6 +266,7 @@ public class ClientSocketThread extends Thread {
 				if (!split[1].contains("null")) {
 					server = new RemoteHost(split[1], split[2]);
 					return server;
+
 				} else
 					server = null;
 			}
@@ -273,6 +280,10 @@ public class ClientSocketThread extends Thread {
 
 	public boolean getLigado() {
 		return this.ligado;
+	}
+
+	public void setLigado(boolean t) {
+		this.ligado = t;
 	}
 
 	private String md5(String string) {
@@ -309,10 +320,37 @@ public class ClientSocketThread extends Thread {
 
 	}
 
+	public boolean isRunning() {
+		return running;
+	}
+
+	public void setRunning(boolean running) {
+		this.running = running;
+	}
+
+	public RemoteHost getServer() {
+		return server;
+	}
+
+	public Object receberObjecto() {
+		try {
+			ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
+			Object o = ois.readObject();
+			return o;
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	private class inbound implements Runnable {
 		public void run() {
 
-			while (!inThread.isInterrupted()) {
+			while (!inThread.isInterrupted() && ligado && !s.isClosed()) {
 				try {
 					String in = is.readUTF();
 					// System.out.println(in);

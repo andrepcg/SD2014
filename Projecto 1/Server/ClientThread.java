@@ -15,6 +15,7 @@ import java.util.ArrayList;
 
 import RMI.RMI;
 import Util.Ideia;
+import Util.Mercado;
 import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
@@ -99,10 +100,6 @@ class ClientThread extends Thread {
 
 			historicoTransaccoes(input);
 
-		} else if (input.startsWith("RECEBER_FICHEIRO|")) {
-			String[] split = input.split("\\|");
-			receberFicheiro(split[1]);
-
 		} else if (input.startsWith("TOPICO_IDEIAS|")) {
 			listarIdeiasTopico(input);
 
@@ -114,7 +111,53 @@ class ClientThread extends Thread {
 
 		} else if (input.startsWith("SHARES|")) {
 			seleccionarShares(input);
+
+		} else if (input.startsWith("IDEIA|")) {
+			seleccionarIdeia(input);
+
+		} else if (input.startsWith("MERCADO|")) {
+			mercadoIdeia(input);
+
+		} else if (input.startsWith("CRIAR_TOPICO|")) {
+			criarTopico(input);
 		}
+
+	}
+
+	private void criarTopico(String input) {
+		String[] split = input.split("\\|");
+		try {
+			rmi.criarTopico(split[1]);
+		} catch (Exception e) {
+
+		}
+
+	}
+
+	private void mercadoIdeia(String input) {
+		String[] split = input.split("\\|");
+
+		try {
+			Mercado mercado = rmi.mercadoShares(Integer.parseInt(split[1]));
+
+			String ordensCompra = "ORDENSCOMPRA|" + mercado.getOrdensCompraString();
+			String ordensVenda = "ORDENSVENDA|" + mercado.getOrdensVendaString();
+
+			String concat = ordensCompra + "<->" + ordensVenda;
+			enviarString(concat);
+
+		} catch (NumberFormatException | RemoteException e) {
+
+			e.printStackTrace();
+		}
+
+	}
+
+	private void seleccionarIdeia(String input) {
+		String[] split = input.split("\\|");
+
+		// TODO rmi
+
 	}
 
 	private void seleccionarShares(String input) {
@@ -129,7 +172,7 @@ class ClientThread extends Thread {
 
 				// SHARES|idShare;idIdeia;numShares;texto
 				for (Share s : shares)
-					lista += s.getId() + ";" + s.getIdeia() + ";" + s.getNum_shares() + ";" + s.getIdeia() + "\\|";
+					lista += s.getId() + ";" + s.getIdIdeia() + ";" + s.getNum_shares() + ";" + s.getIdeia() + "|";
 
 				lista = lista.substring(0, lista.length() - 1);
 
@@ -148,11 +191,20 @@ class ClientThread extends Thread {
 
 	private void criarIdeia(String input) {
 		String[] split = input.split("\\|");
-		// iduser;topico;texto;preco;time
+		// iduser|topico|texto|preco|time|file
+		// System.out.println(input);
 		try {
-			rmi.criarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), split[5]);
+			int id = rmi.criarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), split[5]);
+			// System.out.println("Ideia inserida id: " + id);
+			if (id > 0) {
+				if (split[6].compareToIgnoreCase("true") == 0) {
+					String path = receberFicheiro(input, Long.parseLong(split[7]), split[8]);
+					if (path != null)
+						rmi.inserirFicheiro(id, path);
+				}
+			}
+
 		} catch (NumberFormatException | RemoteException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -165,7 +217,7 @@ class ClientThread extends Thread {
 			String lista = "";
 
 			for (Topico t : topicos)
-				lista += t.getId() + ";" + t.getNome() + "\\|";
+				lista += t.getId() + ";" + t.getNome() + "|";
 
 			lista = lista.substring(0, lista.length() - 1);
 
@@ -199,7 +251,7 @@ class ClientThread extends Thread {
 			String[] split = input.split("\\|");
 			ArrayList<Ideia> ideias = rmi.mostraIdeias(Integer.parseInt(split[1]), 0);
 
-			String d = ideiasFunc(ideias, "TOPICOS_IDEIAS");
+			String d = ideiasFunc(ideias, "TOPICO_IDEIAS");
 
 			enviarString(d);
 
@@ -220,7 +272,7 @@ class ClientThread extends Thread {
 
 				// HISTORICOTRANSACCOES|idIdeia;numShares;preco;pago;tipo;timestamp
 				for (Transaccao t : ts) {
-					lista += t.getIdIdeia() + ";" + t.getNumShares() + ";" + t.getPreco() + ";" + t.getPago() + ";" + t.getTipo() + ";" + t.getTimestamp() + "\\|";
+					lista += t.getIdIdeia() + ";" + t.getNumShares() + ";" + t.getPreco() + ";" + t.getPago() + ";" + t.getTipo() + ";" + t.getTimestamp() + "|";
 				}
 
 				lista = lista.substring(0, lista.length() - 1);
@@ -243,7 +295,7 @@ class ClientThread extends Thread {
 			String lista = "";
 
 			for (Ideia t : ideias)
-				lista += t.getIdIdeia() + ";" + t.getUsername() + ";" + t.getTexto() + ";" + t.getData() + "\\|";
+				lista += t.getIdIdeia() + ";" + t.getUsername() + ";" + t.getTexto() + ";" + t.getData() + "|";
 
 			if (lista.length() > 0)
 				lista = lista.substring(0, lista.length() - 1);
@@ -260,19 +312,26 @@ class ClientThread extends Thread {
 		}
 	}
 
-	private void receberFicheiro(String nome) {
-		byte[] mybytearray = new byte[1024];
+	private String receberFicheiro(String input, long l, String extensao) {
+		byte[] mybytearray = new byte[(int) l];
+
+		long nome = System.currentTimeMillis();
 
 		try {
-			FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "\\ficheiros\\" + nome);
+			String dir = System.getProperty("user.dir") + "\\ficheiros\\" + nome + (extensao != null ? "." + extensao : "");
+			FileOutputStream fos = new FileOutputStream(dir);
 			BufferedOutputStream bos = new BufferedOutputStream(fos);
 			int bytesRead = in.read(mybytearray, 0, mybytearray.length);
 			bos.write(mybytearray, 0, bytesRead);
 			bos.close();
-			System.out.println("Ficheiro recebido! " + System.getProperty("user.dir") + "\\ficheiros\\" + nome);
+			System.out.println("Ficheiro recebido! " + dir);
+
+			return dir;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+		return null;
 
 	}
 
@@ -303,8 +362,6 @@ class ClientThread extends Thread {
 	private boolean login(String[] dadosLogin) {
 		String username = dadosLogin[0];
 		String password = dadosLogin[1];
-
-		// TODO acede RMI e faz login ao user. login com sucesso = true
 
 		User verf = null;
 

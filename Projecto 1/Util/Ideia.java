@@ -2,6 +2,7 @@ package Util;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 
 public class Ideia implements Serializable {
 
@@ -11,12 +12,16 @@ public class Ideia implements Serializable {
 	private String texto;
 	private Timestamp data;
 
+	ArrayList<Ideia> respostas;
+
 	public Ideia(int idIdeia, int idUser, String username, String texto, Timestamp data) {
 		this.idIdeia = idIdeia;
 		this.idUser = idUser;
 		this.texto = texto;
 		this.data = data;
 		this.setUsername(username);
+
+		respostas = new ArrayList<>();
 
 	}
 
