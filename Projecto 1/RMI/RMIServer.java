@@ -8,6 +8,7 @@ import java.util.ArrayList;
 
 import SQL.OracleJDBC;
 import Util.Ideia;
+import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -56,6 +57,10 @@ public class RMIServer extends UnicastRemoteObject implements RMI {
 
 	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) throws RemoteException {
 		return oracle.criarIdeia(idUser, idTopico, texto, preco, data);
+	}
+
+	public ArrayList<Share> seleccionarShares(int idUser) {
+		return oracle.seleccionarShares(idUser);
 	}
 
 	public OracleJDBC connectDB() {

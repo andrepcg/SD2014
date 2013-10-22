@@ -147,7 +147,7 @@ public class ClientTCP {
 			} else if (num == 4) {
 
 				socketThread.adicionarPacote("SHARES|" + utilizador.getId());
-				imprimirDados(dados(resposta), true);
+				imprimirShares(dados(resposta));
 
 			} else if (num == 1) {
 
@@ -182,6 +182,23 @@ public class ClientTCP {
 			}
 		}
 
+	}
+
+	private void imprimirShares(String dados) {
+		// SHARES|idShare;idIdeia;numShares;texto
+		if (dados != null) {
+
+			if (dados.startsWith("SHARES|0")) {
+				System.out.println("Sem shares\n");
+			} else {
+				String[] split = dados.split("\\|");
+
+				for (int i = 1; i < split.length; i++) {
+					String[] t = split[i].split(";");
+					System.out.println(t[0] + ". [ " + t[2] + " shares ] " + encurtarIdeia(t[3], 40));
+				}
+			}
+		}
 	}
 
 	private void menuTopico(String comando, int topicoActual, User utilizador) {
@@ -243,11 +260,15 @@ public class ClientTCP {
 
 				for (int i = 1; i < split.length; i++) {
 					String[] t = split[i].split(";");
-					System.out.println(t[0] + ". [" + t[1] + "] " + (t[2].length() >= 40 ? t[2].subSequence(0, 40) : t[2]) + "... (" + t[3] + ")");
+					System.out.println(t[0] + ". [" + t[1] + "] " + encurtarIdeia(t[2], 40) + " (" + t[3] + ")");
 				}
 				System.out.print("\n");
 			}
 		}
+	}
+
+	private String encurtarIdeia(String ideia, int numCars) {
+		return (String) (ideia.length() >= numCars ? ideia.subSequence(0, numCars) : ideia) + "...";
 	}
 
 	private void imprimirTransaccoes(String dados) {

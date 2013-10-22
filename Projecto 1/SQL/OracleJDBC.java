@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 
 import Util.Ideia;
+import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -179,6 +180,25 @@ public class OracleJDBC {
 		} catch (SQLException e) {
 		}
 		return ideias;
+	}
+
+	public ArrayList<Share> seleccionarShares(int idUser) {
+		ArrayList<Share> shares = new ArrayList<Share>();
+		try {
+			String sql = "select shares.id, shares.idUser, shares.num_shares, ideia.texto, ideia.id  FROM shares LEFT JOIN ideia ON ideia.id = shares.idIdeia  where shares.idUser = ?";
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm = connection.prepareStatement(sql);
+			stm.setInt(1, idUser);
+
+			ResultSet rs = stm.executeQuery();
+			while (rs.next()) {
+				shares.add(new Share(rs.getInt(1), rs.getInt(5), rs.getInt(2), rs.getString(4), rs.getInt(3)));
+			}
+		} catch (Exception e) {
+
+		}
+
+		return shares;
 	}
 
 	public boolean criarIdeia(int idUser, int idTopico, String texto, double preco, String data) {

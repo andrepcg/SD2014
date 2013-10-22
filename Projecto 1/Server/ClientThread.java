@@ -15,6 +15,7 @@ import java.util.ArrayList;
 
 import RMI.RMI;
 import Util.Ideia;
+import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
 import Util.User;
@@ -110,6 +111,38 @@ class ClientThread extends Thread {
 
 		} else if (input.startsWith("CRIAR_IDEIA|")) {
 			criarIdeia(input);
+
+		} else if (input.startsWith("SHARES|")) {
+			seleccionarShares(input);
+		}
+	}
+
+	private void seleccionarShares(String input) {
+		String[] split = input.split("\\|");
+
+		ArrayList<Share> shares = new ArrayList<>();
+		try {
+			shares = rmi.seleccionarShares(Integer.parseInt(split[1]));
+
+			if (shares.size() > 0) {
+				String lista = "";
+
+				// SHARES|idShare;idIdeia;numShares;texto
+				for (Share s : shares)
+					lista += s.getId() + ";" + s.getIdeia() + ";" + s.getNum_shares() + ";" + s.getIdeia() + "\\|";
+
+				lista = lista.substring(0, lista.length() - 1);
+
+				String d = "SHARES|" + lista;
+				enviarString(d);
+			} else {
+
+				String d = "SHARES|0";
+				enviarString(d);
+			}
+
+		} catch (NumberFormatException | RemoteException e) {
+			e.printStackTrace();
 		}
 	}
 
