@@ -2,8 +2,10 @@ package Cliente;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -18,14 +20,12 @@ public class ClientTCP {
 	private static boolean running = true;
 	Scanner sc;
 	Response resposta;
+	User utilizador;
 
 	public static void main(String args[]) throws IOException {
 
 		// String loader = getHost(args);
 		String loader = "localhost:9000";
-
-		// System.out.println("\t[ ORDENS DE COMPRA ]\t\t\t[ ORDENS DE VENDA ]");
-		// System.out.println("Soma\tShares\tPreco\t\t\t\tPreco\tShares\tSoma");
 
 		if (loader.length() > 1) {
 			new ClientTCP(new RemoteHost(loader));
@@ -55,7 +55,7 @@ public class ClientTCP {
 			sc = new Scanner(System.in);
 
 			boolean logado = false;
-			User utilizador = null;
+			utilizador = null;
 
 			String input;
 
@@ -258,8 +258,7 @@ public class ClientTCP {
 				if (in.matches("\\b(\\d)+\\b")) {
 					resposta.setResposta(null);
 					socketThread.adicionarPacote("MERCADO|" + in);
-					String x = dados(resposta);
-					imprimirOrdens(x);
+					imprimirOrdens(dados(resposta));
 					// dentro de uma share
 					//
 					// [ORDENS COMPRA]
@@ -323,7 +322,7 @@ public class ClientTCP {
 			criarIdeia(topicoActual, utilizador);
 		else if (comando.equals("C") || comando.equals("c"))
 			comprarIdeia();
-		else if (comando.matches("\\b\\(\\d)+\\b")) {
+		else if (comando.matches("\\b(\\d)+\\b")) {
 			menuIdeia(comando);
 		}
 
@@ -348,8 +347,43 @@ public class ClientTCP {
 			}
 		}
 
-		String compra = "COMPRAR_IDEIA|" + id;
-		socketThread.adicionarPacote(compra);
+		resposta.setResposta(null);
+		socketThread.adicionarPacote("MERCADO|" + id);
+		imprimirOrdens(dados(resposta));
+
+		verf = false;
+		while (!verf) {
+			String in = "";
+			do {
+				System.out.print("\n<numShares> <preco por share (ate 2 casas decimais)>\nOrdem compra >> ");
+				in = sc.nextLine();
+			} while (!in.matches("\\b(\\d)+ [0-9]+(\\.?[0-9]{1,2})\\b"));
+
+			String[] split = in.split(" ");
+			int numShares = Integer.parseInt(split[0]);
+			double preco = Double.parseDouble(split[1]);
+			double precoTotal = numShares * preco;
+
+			System.out.println("Preco total: " + precoTotal + " DeiCoins\nDisponivel em conta: " + utilizador.getDeicoins() + " DeiCoins");
+
+			if (precoTotal > utilizador.getDeicoins()) {
+				System.out.println("O preco total supera o montante em conta");
+				System.out.println("Nova ordem? [S]im [N]ao\n>> ");
+				in = sc.nextLine();
+				if (in.compareToIgnoreCase("s") != 0)
+					verf = true;
+			} else {
+				System.out.println("Compra de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + id + "\nCONFIRMAR? [S]im [N]ao\n>> ");
+				in = sc.nextLine();
+				if (in.compareToIgnoreCase("s") == 0) {
+					// ORDEM_COMPRA|idIdeia;idUser;numShares;preco_por_share;precoTotal
+					String compra = "ORDEM_COMPRA|" + id + ";" + utilizador.getId() + ";" + numShares + ";" + preco + ";" + precoTotal + ";" + new Timestamp(new Date().getTime());
+					socketThread.adicionarPacote(compra);
+				}
+				verf = true;
+			}
+		}
+
 	}
 
 	private void criarIdeia(int topico, User user) {
@@ -391,6 +425,20 @@ public class ClientTCP {
 			String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime() + "|" + file;
 			socketThread.adicionarPacote(ideia);
 		}
+
+		if (receberCheck())
+			System.out.println("## ideia inserida");
+		else
+			System.out.println("## nope");
+
+	}
+
+	private boolean receberCheck() {
+		resposta.setResposta(null);
+		if (dados(resposta).contains("CHECK")) {
+			return true;
+		} else
+			return false;
 
 	}
 
@@ -485,6 +533,7 @@ public class ClientTCP {
 	}
 
 	private String dados(Response resposta) {
+		long time = System.currentTimeMillis();
 		synchronized (resposta) {
 			while (resposta.isNull()) {
 				try {

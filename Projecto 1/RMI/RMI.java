@@ -35,4 +35,6 @@ public interface RMI extends Remote {
 	public boolean inserirFicheiro(int idIdeia, String path) throws RemoteException;
 
 	public Mercado mercadoShares(int idIdeia) throws RemoteException;
+
+	public int criarOrdem(int tipo, int idIdeia, int idUser, int numShares, double preco_por_share, double precoTotal, String timestamp) throws RemoteException;
 }

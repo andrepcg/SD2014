@@ -5,12 +5,12 @@ import java.sql.Timestamp;
 
 public class Ordem implements Serializable {
 
-	private int idideia, idUser, num_shares;
+	private int idideia, idUser, num_shares, id;
 	private double preco_por_share;
 	private Timestamp timestamp;
 
-	public Ordem(int idideia, int idUser, int num_shares, double preco_por_share, Timestamp timestamp) {
-
+	public Ordem(int id, int idideia, int idUser, int num_shares, double preco_por_share, Timestamp timestamp) {
+		this.id = id;
 		this.idideia = idideia;
 		this.idUser = idUser;
 		this.num_shares = num_shares;
@@ -60,6 +60,14 @@ public class Ordem implements Serializable {
 
 	public String toString() {
 		return idideia + ";" + idUser + ";" + num_shares + ";" + preco_por_share + ";" + timestamp;
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public void setId(int id) {
+		this.id = id;
 	}
 
 }

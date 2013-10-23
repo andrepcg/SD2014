@@ -120,6 +120,26 @@ class ClientThread extends Thread {
 
 		} else if (input.startsWith("CRIAR_TOPICO|")) {
 			criarTopico(input);
+
+		} else if (input.startsWith("ORDEM_COMPRA|")) {
+			criarOrdem(input);
+
+		}
+
+	}
+
+	private void criarOrdem(String input) {
+		// ORDEM_COMPRA|idIdeia;idUser;numShares;preco_por_share;precoTotal;timestamp
+		try {
+			String[] split = input.split("\\|");
+
+			String[] ordem = split[1].split(";");
+			int tipo = (split[0].compareTo("ORDEM_COMPRA") == 0) ? 0 : 1;
+
+			int r = rmi.criarOrdem(tipo, Integer.parseInt(ordem[0]), Integer.parseInt(ordem[1]), Integer.parseInt(ordem[2]), Double.parseDouble(ordem[3]), Double.parseDouble(ordem[4]), ordem[5]);
+		} catch (NumberFormatException | RemoteException e) {
+
+			e.printStackTrace();
 		}
 
 	}
@@ -203,6 +223,8 @@ class ClientThread extends Thread {
 						rmi.inserirFicheiro(id, path);
 				}
 			}
+
+			sendCheck();
 
 		} catch (NumberFormatException | RemoteException e) {
 			e.printStackTrace();
@@ -312,6 +334,10 @@ class ClientThread extends Thread {
 		}
 	}
 
+	private void sendCheck() {
+		enviarString("CHECK");
+	}
+
 	private String receberFicheiro(String input, long l, String extensao) {
 		byte[] mybytearray = new byte[(int) l];
 
@@ -391,9 +417,8 @@ class ClientThread extends Thread {
 
 	private void heartbeat() {
 		try {
-			// Thread.sleep(150);
 			os.writeUTF("heartbeat");
-			// System.out.println("enviar heartbeat");
+
 		} catch (IOException r) {
 
 			fecharSocket();

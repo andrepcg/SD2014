@@ -1,4 +1,5 @@
 package Server;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -41,9 +42,10 @@ public class Failover extends Thread {
 				}
 
 				if (data.contains("SET PRIMARIO")) {
-					if (data.contains("TRUE"))
+					if (data.contains("TRUE")) {
 						server.setPrimario(true);
-					else if (data.contains("FALSE"))
+						server.ligarRMI();
+					} else if (data.contains("FALSE"))
 						server.setPrimario(false);
 				}
 

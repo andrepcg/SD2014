@@ -94,12 +94,10 @@ public class ClientSocketThread extends Thread {
 
 			long time = System.currentTimeMillis();
 
-			if (ligado && time - lastHeartBeat >= 3000)
+			if (ligado && time - lastHeartBeat >= 3000) {
 				heartbeat();
-			// else if (!(heartBeatEnviado && heartBeatRecebido) && time -
-			// lastHeartBeat >= 1000)
-			// if (time - lastReconnect >= 1000)
-			// reconnect();
+			} else if ((heartBeatEnviado && !heartBeatRecebido) && time - lastHeartBeat >= 500)
+				reconnect();
 		}
 	}
 
@@ -188,7 +186,7 @@ public class ClientSocketThread extends Thread {
 
 	}
 
-	private boolean reconnect() {
+	private synchronized boolean reconnect() {
 		fecharSocket();
 		lastReconnect = System.currentTimeMillis();
 		if (!connectSocket()) {
@@ -350,14 +348,16 @@ public class ClientSocketThread extends Thread {
 	private class inbound implements Runnable {
 		public void run() {
 
-			while (!inThread.isInterrupted() && ligado && !s.isClosed()) {
+			while (!inThread.isInterrupted()) {
 				try {
 					String in = is.readUTF();
 					// System.out.println(in);
 					inboundPacketQueue.add(in);
 				} catch (IOException e) {
 
-					// e.printStackTrace();
+					// reconnect();
+				} catch (Exception e) {
+
 				}
 			}
 

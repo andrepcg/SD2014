@@ -72,6 +72,10 @@ public class RMIServer extends UnicastRemoteObject implements RMI {
 		return oracle.mercadoShares(idIdeia);
 	}
 
+	public int criarOrdem(int tipo, int idIdeia, int idUser, int numShares, double preco_por_share, double precoTotal, String timestamp) throws RemoteException {
+		return oracle.criarOrdem(tipo, idIdeia, idUser, numShares, preco_por_share, precoTotal, timestamp);
+	}
+
 	public OracleJDBC connectDB() {
 		return new OracleJDBC();
 	}

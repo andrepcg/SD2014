@@ -46,28 +46,36 @@ public class Server {
 
 	public Server(String loader) {
 
-		ligarRMI();
+		if (primario)
+			ligarRMI();
 
 		connect(loader);
 
-		if (rmiON) {
-			failover = new Failover(this, porta);
-			failover.start();
+		failover = new Failover(this, porta);
+		failover.start();
 
-			socketThread = new SocketThread(this, porta, this.rmi);
-			socketThread.start();
-		}
+		// if (rmiON) {
+		// socketThread = new SocketThread(this, porta, this.rmi);
+		// socketThread.start();
+		// }
 
 		Scanner scanIn = new Scanner(System.in);
-		while (ligado && rmiON) {
+		// while (ligado) {
+		//
+		// System.out.print(">> ");
+		// String s = scanIn.nextLine();
+		//
+		// if (s.contentEquals("clientes")) {
+		// System.out.println(socketThread.listarClientes());
+		// }
+		//
+		// }
 
-			System.out.print(">> ");
-			String s = scanIn.nextLine();
-
-			if (s.contentEquals("clientes")) {
-				System.out.println(socketThread.listarClientes());
-			}
-
+		try {
+			socketThread.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 
@@ -75,6 +83,8 @@ public class Server {
 		try {
 			this.rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
 			rmiON = true;
+			socketThread = new SocketThread(this, porta, this.rmi);
+			socketThread.start();
 			return true;
 		} catch (NotBoundException e) {
 			System.out.println("Not bound");

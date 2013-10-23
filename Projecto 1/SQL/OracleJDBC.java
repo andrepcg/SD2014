@@ -10,6 +10,7 @@ import java.util.ArrayList;
 
 import Util.Ideia;
 import Util.Mercado;
+import Util.Ordem;
 import Util.OrdemCompra;
 import Util.OrdemVenda;
 import Util.Share;
@@ -258,13 +259,13 @@ public class OracleJDBC {
 	public Mercado mercadoShares(int idIdeia) {
 		Mercado mercado = new Mercado();
 		try {
-			String sql = "SELECT * FROM ordenscompra WHERE idIdeia = ?";
+			String sql = "SELECT * FROM ordenscompra WHERE idIdeia = ? ORDER BY preco_por_share DESC";
 			PreparedStatement stm = connection.prepareStatement(sql);
 			stm.setInt(1, idIdeia);
 
 			ResultSet rs = stm.executeQuery();
 			while (rs.next()) {
-				mercado.addOrdemCompra(new OrdemCompra(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+				mercado.addOrdemCompra(new OrdemCompra(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
 			}
 
 			sql = "SELECT * FROM ordensvenda WHERE idIdeia = ?";
@@ -273,7 +274,7 @@ public class OracleJDBC {
 
 			rs = stm.executeQuery();
 			while (rs.next()) {
-				mercado.addOrdemVenda(new OrdemVenda(rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+				mercado.addOrdemVenda(new OrdemVenda(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
 			}
 
 			return mercado;
@@ -301,4 +302,159 @@ public class OracleJDBC {
 		return false;
 	}
 
+	public int criarOrdem(int tipo, int idIdeia, int idUser, int numShares, double preco_por_share, double precoTotal, String timestamp) {
+
+		try {
+			String sql = "INSERT into ordens" + (tipo == 0 ? "compra" : "venda") + " (idIdeia,idUser,num_shares,preco_por_share,timestamp) values(?,?,?,?,?)";
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+			stm.setInt(2, idUser);
+			stm.setInt(3, numShares);
+			stm.setDouble(4, preco_por_share);
+			stm.setTimestamp(5, Timestamp.valueOf(timestamp));
+			stm.executeUpdate();
+
+			matchOrdens(idIdeia);
+
+			return 1;
+		} catch (SQLException e) {
+
+		}
+
+		return -1;
+	}
+
+	private void matchOrdens(int idIdeia) {
+
+		Mercado ordensIdeia = null;
+		try {
+			ordensIdeia = new Mercado();
+
+			String sql = "SELECT * FROM ordensvenda WHERE idIdeia = ?";
+			PreparedStatement stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+
+			ResultSet rs = stm.executeQuery();
+			while (rs.next()) {
+				ordensIdeia.addOrdemVenda(new OrdemVenda(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+			}
+
+			sql = "SELECT * FROM ordenscompra WHERE idIdeia = ?";
+			stm = connection.prepareStatement(sql);
+			stm.setInt(1, idIdeia);
+			rs = stm.executeQuery();
+			while (rs.next()) {
+				ordensIdeia.addOrdemCompra(new OrdemCompra(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getDouble(5), rs.getTimestamp(6)));
+			}
+
+			Ordem[] match = ordensIdeia.ordensPrecoMatch();
+
+			int diferencaShares = (match[0].getNum_shares() <= match[1].getNum_shares()) ? match[0].getNum_shares() : match[0].getNum_shares() - match[1].getNum_shares();
+			double preco = diferencaShares * match[0].getPreco_por_share();
+
+			String update1 = "UPDATE ordenscompra SET num_shares = num_shares - ? WHERE id = ?";
+			String update2 = "UPDATE ordensvenda SET num_shares = num_shares - ? WHERE id = ?";
+			String update3 = "UPDATE utilizadores SET deicoins = deicoins - ? WHERE id = ?";
+			String update4 = "UPDATE utilizadores SET deicoins = deicoins + ? WHERE id = ?";
+			String update5 = null;
+			String update6 = null;
+
+			boolean userCompraTemShares = false;
+			sql = "SELECT * FROM shares WHERE idUser = ? AND idIdeia = ?";
+			stm = connection.prepareStatement(sql);
+			stm.setInt(1, match[0].getIdUser());
+			stm.setInt(2, idIdeia);
+			rs = stm.executeQuery();
+			if (rs.next()) {
+				userCompraTemShares = true;
+				update5 = "UPDATE shares SET num_shares = num_shares + ? WHERE idIdeia = ? AND idUser = ?";
+			} else
+				update5 = "INSERT INTO shares (num_shares,idIdeia,idUser) VALUES (?,?,?)";
+
+			boolean userVendeShares = false;
+			sql = "SELECT * FROM shares WHERE idUser = ? AND idIdeia = ?";
+			stm = connection.prepareStatement(sql);
+			stm.setInt(1, match[1].getIdUser());
+			stm.setInt(2, idIdeia);
+			rs = stm.executeQuery();
+			if (rs.next()) {
+				int numsharesuser = rs.getInt(4);
+				if (numsharesuser > diferencaShares) {
+					update6 = "UPDATE shares SET num_shares = num_shares - ? WHERE idIdeia = ? AND idUser = ?";
+					userVendeShares = true;
+				} else
+					update6 = "DELETE FROM shares WHERE idIdeia = ? AND idUser = ?";
+			}
+
+			connection.setAutoCommit(false);
+			PreparedStatement stm1 = connection.prepareStatement(update1);
+			PreparedStatement stm2 = connection.prepareStatement(update2);
+			PreparedStatement stm3 = connection.prepareStatement(update3);
+			PreparedStatement stm4 = connection.prepareStatement(update4);
+			PreparedStatement stm5 = connection.prepareStatement(update5);
+			PreparedStatement stm6 = connection.prepareStatement(update6);
+
+			stm1.setInt(1, diferencaShares);
+			stm1.setInt(2, match[0].getId());
+			stm1.executeUpdate();
+
+			stm2.setInt(1, diferencaShares);
+			stm2.setInt(2, match[1].getId());
+			stm2.executeUpdate();
+
+			stm3.setDouble(1, preco);
+			stm3.setInt(2, match[0].getIdUser());
+			stm3.executeUpdate();
+
+			stm4.setDouble(1, preco);
+			stm4.setInt(2, match[1].getIdUser());
+			stm4.executeUpdate();
+
+			stm5.setDouble(1, diferencaShares);
+			stm5.setInt(2, idIdeia);
+			stm5.setInt(3, match[0].getIdUser());
+			stm5.executeUpdate();
+
+			if (userVendeShares) {
+				stm6.setDouble(1, diferencaShares);
+				stm6.setInt(2, idIdeia);
+				stm6.setInt(3, match[1].getIdUser());
+
+			} else {
+				stm6.setInt(1, idIdeia);
+				stm6.setInt(2, match[1].getIdUser());
+
+			}
+			stm6.executeUpdate();
+
+			connection.commit();
+
+			sql = "DELETE FROM ordenscompra WHERE num_shares = 0";
+			stm1 = connection.prepareStatement(sql);
+			stm1.executeUpdate();
+
+			sql = "DELETE FROM ordensvenda WHERE num_shares = 0";
+			stm2 = connection.prepareStatement(sql);
+			stm2.executeUpdate();
+			connection.commit();
+
+		} catch (SQLException e) {
+			if (connection != null) {
+				try {
+					System.err.print("Transaction is being rolled back");
+					connection.rollback();
+				} catch (SQLException excep) {
+
+				}
+			}
+		} finally {
+
+			try {
+				connection.setAutoCommit(true);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
 }

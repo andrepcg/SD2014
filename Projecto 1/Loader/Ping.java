@@ -43,6 +43,7 @@ public class Ping extends Thread {
 						// int x = servidores.size();
 						if (servidores.size() > 1) {
 							primario = servidores.get(1);
+							sendBytes(primario.getHost(), primario.getPort(), "SET PRIMARIO TRUE");
 							System.out.println(primario + " promovido a principal");
 						} else
 							primario = null;
@@ -52,24 +53,6 @@ public class Ping extends Thread {
 					System.out.println("server removido " + server);
 				}
 			}
-
-			// for (Iterator<RemoteHost> it = servidores.iterator();
-			// it.hasNext();) {
-			// RemoteHost server = it.next();
-			// if (!ping(server.getHost(), server.getPort())) {
-			// if (server.equals(primario)) {
-			// int x = servidores.size();
-			// if (servidores.size() > 1) {
-			// primario = servidores.get(1);
-			// System.out.println(primario + " promovido a principal");
-			// } else
-			// primario = null;
-			// }
-			// it.remove();
-			//
-			// System.out.println("server removido " + server);
-			// }
-			// }
 
 		}
 	}
@@ -92,6 +75,35 @@ public class Ping extends Thread {
 
 	public ArrayList<RemoteHost> getServers() {
 		return servidores;
+	}
+
+	private void sendBytes(String ip, int port, String s) {
+		try {
+			DatagramSocket socket = new DatagramSocket();
+			socket.setSoTimeout(1000);
+
+			byte[] send = s.getBytes();
+			InetAddress ipA = InetAddress.getByName(ip);
+
+			DatagramPacket sendPacket = new DatagramPacket(send, send.length, ipA, port);
+			try {
+
+				socket.send(sendPacket);
+				socket.close();
+
+			} catch (SocketTimeoutException e) {
+				socket.close();
+				e.printStackTrace();
+
+			} catch (IOException e) {
+				socket.close();
+				e.printStackTrace();
+
+			}
+
+		} catch (SocketException | UnknownHostException e) {
+			System.out.println("Erro criar socket UDP");
+		}
 	}
 
 	private boolean ping(String ip, int port) {
@@ -119,9 +131,11 @@ public class Ping extends Thread {
 				}
 
 			} catch (SocketTimeoutException e) {
+
 				socket.close();
 				return false;
 			} catch (IOException e) {
+				e.printStackTrace();
 				socket.close();
 				return false;
 			}
