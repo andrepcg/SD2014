@@ -209,7 +209,7 @@ public class ClientTCP {
 
 								resposta.setResposta(null);
 								String d = dados(resposta);
-								if (d.contains("APAGAR_IDEIA")) {
+								if (d != null && d.contains("APAGAR_IDEIA")) {
 									if (d.contains("true"))
 										System.out.println("# Ideia apagada #");
 									else
@@ -228,6 +228,8 @@ public class ClientTCP {
 
 					socketThread.adicionarPacote("LISTARTOPICOS");
 					int numTopicos = imprimirTopicos(dados(resposta), topicos);
+					if (numTopicos != 0)
+						System.out.println("## Nao existem topicos ##");
 					System.out.println("\n[C]riar topico");
 
 					v = false;
@@ -238,7 +240,7 @@ public class ClientTCP {
 
 						if (in.compareToIgnoreCase("C") == 0) {
 							criarTopico(topicos);
-						} else if (in.matches("\\b(\\d)+\\b")) {
+						} else if (numTopicos != 0 && in.matches("\\b(\\d)+\\b")) {
 							try {
 								d = Integer.parseInt(in);
 								if (d > 0 && d <= numTopicos) {
@@ -331,11 +333,13 @@ public class ClientTCP {
 
 				for (int i = 1; i < split.length; i++) {
 					String[] t = split[i].split(";");
-					System.out.println(t[1] + ". [ " + t[2] + " shares ] [ Cotacao ] " + encurtarIdeia(t[3], 40));
+					System.out.println(t[1] + ". [ " + t[2] + " shares ] " + encurtarIdeia(t[3], 40));
 				}
 
 				System.out.print("[L]istar todas as ordens\n>> ");
 				String in = sc.nextLine();
+
+				boolean ordens = false;
 
 				if (in.matches("\\b(\\d)+\\b")) {
 					resposta.setResposta(null);
@@ -350,7 +354,7 @@ public class ClientTCP {
 					Object o = sincronizarObjecto(obj);
 					m = (Mercado) o;
 
-					imprimirOrdens(m);
+					ordens = imprimirOrdens(m);
 
 				} else if (in.compareToIgnoreCase("l") == 0) {
 					socketThread.adicionarPacote("LISTAR_ORDENS|" + utilizador.getId() + "|0");
@@ -359,12 +363,17 @@ public class ClientTCP {
 					socketThread.setObj(obj);
 					Object o = sincronizarObjecto(obj);
 					m = (Mercado) o;
-					imprimirOrdens(m);
+					ordens = imprimirOrdens(m);
 
 				}
 
 				if (in.matches("\\b(\\d)+\\b") || in.compareToIgnoreCase("l") == 0) {
-					System.out.print("[R]emover ordem - [E]ditar ordem\n>> ");
+					System.out.print("\n[C]riar ordem");
+
+					if (ordens)
+						System.out.print(" - [R]emover ordem");
+
+					System.out.print(">> ");
 
 					String x = sc.nextLine();
 					if (x.compareToIgnoreCase("r") == 0) {
@@ -385,65 +394,97 @@ public class ClientTCP {
 
 						socketThread.adicionarPacote("REMOVER_ORDEM|" + utilizador.getId() + "|" + tipo + "|" + idordem);
 
+					} else if (x.compareToIgnoreCase("c") == 0) {
+						System.out.print("Ordem de [C]ompra ou [V]enda >> ");
+						String ocv = sc.nextLine();
+						int tipo;
+						if (ocv.compareToIgnoreCase("c") == 0) {
+							tipo = 0;
+						} else
+							tipo = 1;
+
+						String idideia;
+						int id;
+						do {
+							System.out.print("ID Share >> ");
+							idideia = sc.nextLine();
+							id = Integer.parseInt(idideia);
+						} while (!idideia.matches("\\b(\\d)+\\b"));
+
+						if (tipo == 0)
+							ordemCompra(id);
+						else
+							ordemVenda(id);
 					}
 				}
 			}
 		}
 	}
 
-	private void imprimirOrdens(Mercado m) {
-		System.out.println("\n[ Suas Ordens de Compra ]");
-		// ir para ideia
+	private boolean imprimirOrdens(Mercado m) {
+		if (m != null) {
+			boolean ordens = false;
 
-		// alterar ordem
-		if (m.getOrdensCompra().size() > 0)
-			for (OrdemCompra oc : m.getOrdensCompra())
-				System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
-		else
-			System.out.println("-- Sem ordens --");
+			System.out.println("\n[ Suas Ordens de Compra ]");
+			// ir para ideia
 
-		System.out.println("\n[ Suas Ordens de Venda ]");
+			// alterar ordem
+			if (m.getOrdensCompra().size() > 0) {
+				for (OrdemCompra oc : m.getOrdensCompra())
+					System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
+				ordens = true;
+			} else
+				System.out.println("-- Sem ordens --");
 
-		if (m.getOrdensVenda().size() > 0)
-			for (OrdemVenda oc : m.getOrdensVenda())
-				System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
-		else
-			System.out.println("-- Sem ordens --");
+			System.out.println("\n[ Suas Ordens de Venda ]");
+
+			if (m.getOrdensVenda().size() > 0) {
+				for (OrdemVenda oc : m.getOrdensVenda())
+					System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
+				ordens = true;
+			} else
+				System.out.println("-- Sem ordens --");
+
+			return ordens;
+		}
+		return false;
 	}
 
 	private void imprimirOrdens(String input) {
-		String[] split = input.split("<->");
+		if (input != null) {
+			String[] split = input.split("<->");
 
-		String[] ordensCompra = split[0].replace("ORDENSCOMPRA|", "").replace("null", "").split("\\|");
-		String[] ordensVenda = split[1].replace("ORDENSVENDA|", "").replace("null", "").split("\\|");
+			String[] ordensCompra = split[0].replace("ORDENSCOMPRA|", "").replace("null", "").split("\\|");
+			String[] ordensVenda = split[1].replace("ORDENSVENDA|", "").replace("null", "").split("\\|");
 
-		System.out.println("\t[ ORDENS DE COMPRA ]\t\t\t[ ORDENS DE VENDA ]");
-		System.out.println("\tSoma\tShares\tPreco\t\t\tPreco\tShares\tSoma");
+			System.out.println("\t[ ORDENS DE COMPRA ]\t\t\t[ ORDENS DE VENDA ]");
+			System.out.println("\tSoma\tShares\tPreco\t\t\tPreco\tShares\tSoma");
 
-		// idideia;idUse;num_shares;preco_por_share;timestamp;
+			// idideia;idUse;num_shares;preco_por_share;timestamp;
 
-		int somaCompra = 0;
-		int somaVenda = 0;
+			int somaCompra = 0;
+			int somaVenda = 0;
 
-		for (int i = 0; i < (ordensCompra.length > ordensVenda.length ? ordensCompra.length : ordensVenda.length); i++) {
-			String oCompra = "";
-			if (i < ordensCompra.length && ordensCompra[i].length() > 1) {
-				String[] s = ordensCompra[i].split(";");
-				somaCompra += Integer.parseInt(s[2]);
-				oCompra += somaCompra + "\t" + s[2] + "\t" + s[3] + "\t";
+			for (int i = 0; i < (ordensCompra.length > ordensVenda.length ? ordensCompra.length : ordensVenda.length); i++) {
+				String oCompra = "";
+				if (i < ordensCompra.length && ordensCompra[i].length() > 1) {
+					String[] s = ordensCompra[i].split(";");
+					somaCompra += Integer.parseInt(s[2]);
+					oCompra += somaCompra + "\t" + s[2] + "\t" + s[3] + "\t";
+				}
+
+				String oVenda = "";
+				if (i < ordensVenda.length && ordensVenda[i].length() > 1) {
+					String[] s = ordensVenda[i].split(";");
+					somaVenda += Integer.parseInt(s[2]);
+					oVenda += s[3] + "\t" + s[2] + "\t" + somaVenda;
+				}
+
+				if (oCompra.length() < 2)
+					oCompra = "\t\t\t";
+
+				System.out.println("\t" + oCompra + "\t\t" + oVenda);
 			}
-
-			String oVenda = "";
-			if (i < ordensVenda.length && ordensVenda[i].length() > 1) {
-				String[] s = ordensVenda[i].split(";");
-				somaVenda += Integer.parseInt(s[2]);
-				oVenda += s[3] + "\t" + s[2] + "\t" + somaVenda;
-			}
-
-			if (oCompra.length() < 2)
-				oCompra = "\t\t\t";
-
-			System.out.println("\t" + oCompra + "\t\t" + oVenda);
 		}
 
 	}
@@ -552,7 +593,12 @@ public class ClientTCP {
 		socketThread.adicionarPacote("MERCADO|" + id);
 		imprimirOrdens(dados(resposta));
 
-		verf = false;
+		ordemCompra(id);
+
+	}
+
+	private void ordemCompra(int idIdeia) {
+		boolean verf = false;
 		while (!verf) {
 			String in = "";
 			do {
@@ -574,17 +620,42 @@ public class ClientTCP {
 				if (in.compareToIgnoreCase("s") != 0)
 					verf = true;
 			} else {
-				System.out.println("\nCompra de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + id + "\n\nCONFIRMAR? [S]im [N]ao\n>> ");
+				System.out.println("\nCompra de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + idIdeia + "\n\nCONFIRMAR? [S]im [N]ao\n>> ");
 				in = sc.nextLine();
 				if (in.compareToIgnoreCase("s") == 0) {
 					// ORDEM_COMPRA|idIdeia;idUser;numShares;preco_por_share;precoTotal
-					String compra = "ORDEM_COMPRA|" + id + ";" + utilizador.getId() + ";" + numShares + ";" + preco + ";" + precoTotal + ";" + new Timestamp(new Date().getTime());
+					String compra = "ORDEM_COMPRA|" + idIdeia + ";" + utilizador.getId() + ";" + numShares + ";" + preco + ";" + precoTotal + ";" + new Timestamp(new Date().getTime());
 					socketThread.adicionarPacote(compra);
 				}
 				verf = true;
 			}
 		}
+	}
 
+	private void ordemVenda(int idIdeia) {
+		boolean verf = false;
+		while (!verf) {
+			String in = "";
+			do {
+				System.out.print("\n<numShares> <preco por share (ate 2 casas decimais)>\nOrdem venda >> ");
+				in = sc.nextLine();
+			} while (!in.matches("\\b(\\d)+ [0-9]+(\\.?[0-9]{1,2})\\b"));
+
+			String[] split = in.split(" ");
+			int numShares = Integer.parseInt(split[0]);
+			double preco = Double.parseDouble(split[1]);
+			double precoTotal = numShares * preco;
+
+			System.out.println("\nVenda de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + idIdeia + "\n\nCONFIRMAR? [S]im [N]ao\n>> ");
+			in = sc.nextLine();
+			if (in.compareToIgnoreCase("s") == 0) {
+				// ORDEM_VENDA|idIdeia;idUser;numShares;preco_por_share;precoTotal
+				String venda = "ORDEM_VENDA|" + idIdeia + ";" + utilizador.getId() + ";" + numShares + ";" + preco + ";" + precoTotal + ";" + new Timestamp(new Date().getTime());
+				socketThread.adicionarPacote(venda);
+			}
+			verf = true;
+
+		}
 	}
 
 	private void criarIdeia(int topico, User user, int idMae, int idIdeia, String sentimento) {

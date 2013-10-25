@@ -30,19 +30,15 @@ class ClientThread extends Thread {
 	private DataInputStream is;
 	private RMI rmi;
 	RemoteHost rmihost;
+	SocketThread s;
 
 	private ObjectOutputStream oos;
-
-	// private ObjectInputStream ois;
 	private InputStream in;
 
-	RMIThread rmiThread;
-
-	public ClientThread(Socket clientSocket, RMI rmi, RemoteHost rmihost) {
+	public ClientThread(Socket clientSocket, SocketThread s) {
 		this.clientSocket = clientSocket;
-		this.rmi = rmi;
-		this.rmihost = rmihost;
-		rmiThread = new RMIThread(rmi);
+		this.rmi = s.rmi;
+		this.s = s;
 		try {
 			is = new DataInputStream(clientSocket.getInputStream());
 			os = new DataOutputStream(clientSocket.getOutputStream());
@@ -59,7 +55,7 @@ class ClientThread extends Thread {
 
 		String input = "";
 		while (!clientSocket.isClosed()) {
-			rmi = rmiThread.rmi;
+			rmi = s.rmi;
 			try {
 				input = is.readUTF();
 
@@ -132,6 +128,9 @@ class ClientThread extends Thread {
 		} else if (input.startsWith("ORDEM_COMPRA|")) {
 			criarOrdem(input);
 
+		} else if (input.startsWith("ORDEM_VENDA|")) {
+			criarOrdem(input);
+
 		} else if (input.startsWith("LISTAR_ORDENS|")) {
 			listarOrdens(input);
 
@@ -156,7 +155,7 @@ class ClientThread extends Thread {
 			boolean r = rmi.removerOrdem(Integer.parseInt(split[1]), Integer.parseInt(split[2]), Integer.parseInt(split[3]));
 			// enviarObjecto(m);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -168,7 +167,7 @@ class ClientThread extends Thread {
 			User m = rmi.getUser(Integer.parseInt(split[1]));
 			enviarObjecto(m);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -178,7 +177,7 @@ class ClientThread extends Thread {
 			boolean m = rmi.apagarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]));
 			enviarString("APAGAR_IDEIA|" + m);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -193,7 +192,7 @@ class ClientThread extends Thread {
 			enviarObjecto(m);
 		} catch (RemoteException e) {
 
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -210,7 +209,7 @@ class ClientThread extends Thread {
 
 		} catch (RemoteException e) {
 
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -220,7 +219,7 @@ class ClientThread extends Thread {
 		try {
 			rmi.criarTopico(split[1]);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -238,7 +237,7 @@ class ClientThread extends Thread {
 			enviarString(concat);
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -251,7 +250,7 @@ class ClientThread extends Thread {
 
 			enviarObjecto(ideias);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -281,7 +280,7 @@ class ClientThread extends Thread {
 			}
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -305,7 +304,7 @@ class ClientThread extends Thread {
 			// sendCheck();
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -325,7 +324,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 	}
@@ -341,7 +340,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -356,7 +355,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -386,7 +385,7 @@ class ClientThread extends Thread {
 			}
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 	}
 
@@ -450,7 +449,7 @@ class ClientThread extends Thread {
 			verf = rmi.registo(username, password);
 
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 		enviarString("REGISTO|" + (verf ? "TRUE" : "FALSE"));
@@ -467,7 +466,7 @@ class ClientThread extends Thread {
 		try {
 			verf = rmi.login(username, password);
 		} catch (RemoteException e) {
-			rmiThread.start();
+			s.startRMIfailover();
 		}
 
 		enviarString("LOGIN|" + (verf != null ? ("TRUE" + "|" + verf.getId() + "|" + verf.getUsername() + "|" + verf.getDeicoins()) : "FALSE"));
@@ -489,8 +488,9 @@ class ClientThread extends Thread {
 		} catch (RemoteException e) {
 			// e.printStackTrace();
 			// ligarRMI();
+			// e.printStackTrace();
 
-			rmiThread.start();
+			s.startRMIfailover();
 
 		}
 
@@ -553,31 +553,4 @@ class ClientThread extends Thread {
 		return null;
 	}
 
-	public class RMIThread extends Thread {
-
-		RMI rmi;
-
-		public RMIThread(RMI rmi) {
-			this.rmi = rmi;
-		}
-
-		public void run() {
-			boolean verf = false;
-			while (!verf) {
-				try {
-					Thread.sleep(1500);
-					rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
-					verf = true;
-					System.out.println("Connected RMI");
-				} catch (NotBoundException e) {
-					System.out.println("Not bound");
-				} catch (RemoteException e) {
-					System.out.println("RMI failed");
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-	}
 }

@@ -802,6 +802,7 @@ public class OracleJDBC {
 			String sql = "Select idIdeia from " + (tipo == 0 ? "ordenscompra" : "ordensvenda") + " WHERE idUser = ? AND id = ?";
 			PreparedStatement stm = connection.prepareStatement(sql);
 			stm.setInt(1, idUser);
+			stm.setInt(2, idOrdem);
 			ResultSet rs;
 			rs = stm.executeQuery();
 

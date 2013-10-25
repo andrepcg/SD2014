@@ -33,7 +33,7 @@ public class Server {
 		String loader = getHost(args);
 		primario = checkIfPrimary(args);
 		rmihost = new RemoteHost(getRMI(args));
-		//
+		// //
 		// porta = 5000;
 		// String loader = "localhost:9000";
 		// boolean primary = true;
