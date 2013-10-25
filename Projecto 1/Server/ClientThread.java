@@ -10,12 +10,15 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
 
 import RMI.RMI;
 import Util.Ideia;
 import Util.Mercado;
+import Util.RemoteHost;
 import Util.Share;
 import Util.Topico;
 import Util.Transaccao;
@@ -26,19 +29,25 @@ class ClientThread extends Thread {
 	private DataOutputStream os;
 	private DataInputStream is;
 	private RMI rmi;
+	RemoteHost rmihost;
 
 	private ObjectOutputStream oos;
 
 	// private ObjectInputStream ois;
 	private InputStream in;
 
-	public ClientThread(Socket clientSocket, RMI rmi) {
+	RMIThread rmiThread;
+
+	public ClientThread(Socket clientSocket, RMI rmi, RemoteHost rmihost) {
 		this.clientSocket = clientSocket;
 		this.rmi = rmi;
+		this.rmihost = rmihost;
+		rmiThread = new RMIThread(rmi);
 		try {
 			is = new DataInputStream(clientSocket.getInputStream());
 			os = new DataOutputStream(clientSocket.getOutputStream());
 			in = clientSocket.getInputStream();
+			oos = new ObjectOutputStream(clientSocket.getOutputStream());
 			// ois = new ObjectInputStream(clientSocket.getInputStream());
 
 		} catch (IOException e) {
@@ -49,9 +58,8 @@ class ClientThread extends Thread {
 	public void run() {
 
 		String input = "";
-
 		while (!clientSocket.isClosed()) {
-
+			rmi = rmiThread.rmi;
 			try {
 				input = is.readUTF();
 
@@ -90,7 +98,7 @@ class ClientThread extends Thread {
 
 		} else if (input.matches("\\bLOGIN\\|((\\w{4})\\w*)\\|([a-zA-Z0-9]{32})\\b")) {
 
-			login(dadosRegistoLogin(input));
+			login2(dadosRegistoLogin(input));
 
 		} else if (input.startsWith("LISTARTOPICOS")) {
 
@@ -124,6 +132,68 @@ class ClientThread extends Thread {
 		} else if (input.startsWith("ORDEM_COMPRA|")) {
 			criarOrdem(input);
 
+		} else if (input.startsWith("LISTAR_ORDENS|")) {
+			listarOrdens(input);
+
+		} else if (input.startsWith("APAGAR_IDEIA|")) {
+			apagarIdeia(input);
+
+		} else if (input.startsWith("GET_UTILIZADOR|")) {
+			getUser(input);
+
+		} else if (input.startsWith("REMOVER_ORDEM|")) {
+			removerOrdem(input);
+
+		}
+
+	}
+
+	private void removerOrdem(String input) {
+		try {
+			String[] split = input.split("\\|");
+
+			// REMOVER_ORDEM|idUser|tipo|idOrdem
+			boolean r = rmi.removerOrdem(Integer.parseInt(split[1]), Integer.parseInt(split[2]), Integer.parseInt(split[3]));
+			// enviarObjecto(m);
+		} catch (RemoteException e) {
+			rmiThread.start();
+		}
+
+	}
+
+	private void getUser(String input) {
+		// TODO Auto-generated method stub
+		try {
+			String[] split = input.split("\\|");
+			User m = rmi.getUser(Integer.parseInt(split[1]));
+			enviarObjecto(m);
+		} catch (RemoteException e) {
+			rmiThread.start();
+		}
+	}
+
+	private void apagarIdeia(String input) {
+		try {
+			String[] split = input.split("\\|");
+			boolean m = rmi.apagarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+			enviarString("APAGAR_IDEIA|" + m);
+		} catch (RemoteException e) {
+			rmiThread.start();
+		}
+
+	}
+
+	private void listarOrdens(String input) {
+		String[] split = input.split("\\|");
+
+		// LISTAR_ORDENS|idUser|idIdeia
+
+		try {
+			Mercado m = rmi.ordensUser(Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+			enviarObjecto(m);
+		} catch (RemoteException e) {
+
+			rmiThread.start();
 		}
 
 	}
@@ -137,9 +207,10 @@ class ClientThread extends Thread {
 			int tipo = (split[0].compareTo("ORDEM_COMPRA") == 0) ? 0 : 1;
 
 			int r = rmi.criarOrdem(tipo, Integer.parseInt(ordem[0]), Integer.parseInt(ordem[1]), Integer.parseInt(ordem[2]), Double.parseDouble(ordem[3]), Double.parseDouble(ordem[4]), ordem[5]);
-		} catch (NumberFormatException | RemoteException e) {
 
-			e.printStackTrace();
+		} catch (RemoteException e) {
+
+			rmiThread.start();
 		}
 
 	}
@@ -148,8 +219,8 @@ class ClientThread extends Thread {
 		String[] split = input.split("\\|");
 		try {
 			rmi.criarTopico(split[1]);
-		} catch (Exception e) {
-
+		} catch (RemoteException e) {
+			rmiThread.start();
 		}
 
 	}
@@ -166,9 +237,8 @@ class ClientThread extends Thread {
 			String concat = ordensCompra + "<->" + ordensVenda;
 			enviarString(concat);
 
-		} catch (NumberFormatException | RemoteException e) {
-
-			e.printStackTrace();
+		} catch (RemoteException e) {
+			rmiThread.start();
 		}
 
 	}
@@ -176,7 +246,13 @@ class ClientThread extends Thread {
 	private void seleccionarIdeia(String input) {
 		String[] split = input.split("\\|");
 
-		// TODO rmi
+		try {
+			ArrayList<Ideia> ideias = rmi.seleccionarIdeia(Integer.parseInt(split[1]));
+
+			enviarObjecto(ideias);
+		} catch (RemoteException e) {
+			rmiThread.start();
+		}
 
 	}
 
@@ -204,30 +280,32 @@ class ClientThread extends Thread {
 				enviarString(d);
 			}
 
-		} catch (NumberFormatException | RemoteException e) {
-			e.printStackTrace();
+		} catch (RemoteException e) {
+			rmiThread.start();
 		}
 	}
 
 	private void criarIdeia(String input) {
 		String[] split = input.split("\\|");
-		// iduser|topico|texto|preco|time|file
-		// System.out.println(input);
+		// iduser|topico|texto|preco|time|idMae;null|file
+
 		try {
-			int id = rmi.criarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), split[5]);
+			String[] resp = split[6].split(";");
+			int id = rmi.criarIdeia(Integer.parseInt(split[1]), Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), split[5], Integer.parseInt(resp[0]), Integer.parseInt(resp[1]), resp[2]);
 			// System.out.println("Ideia inserida id: " + id);
 			if (id > 0) {
-				if (split[6].compareToIgnoreCase("true") == 0) {
-					String path = receberFicheiro(input, Long.parseLong(split[7]), split[8]);
+				if (split[7].compareToIgnoreCase("true") == 0) {
+					enviarString("RECEBER_FILE|CHECK");
+					String path = receberFicheiro(input, Long.parseLong(split[8]), split[9]);
 					if (path != null)
 						rmi.inserirFicheiro(id, path);
 				}
 			}
 
-			sendCheck();
+			// sendCheck();
 
-		} catch (NumberFormatException | RemoteException e) {
-			e.printStackTrace();
+		} catch (RemoteException e) {
+			rmiThread.start();
 		}
 	}
 
@@ -247,7 +325,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-
+			rmiThread.start();
 		}
 
 	}
@@ -263,7 +341,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-			e.printStackTrace();
+			rmiThread.start();
 		}
 	}
 
@@ -278,7 +356,7 @@ class ClientThread extends Thread {
 			enviarString(d);
 
 		} catch (RemoteException e) {
-			e.printStackTrace();
+			rmiThread.start();
 		}
 	}
 
@@ -307,8 +385,8 @@ class ClientThread extends Thread {
 				enviarString(d);
 			}
 
-		} catch (NumberFormatException | RemoteException e) {
-			e.printStackTrace();
+		} catch (RemoteException e) {
+			rmiThread.start();
 		}
 	}
 
@@ -372,15 +450,10 @@ class ClientThread extends Thread {
 			verf = rmi.registo(username, password);
 
 		} catch (RemoteException e) {
-			e.printStackTrace();
+			rmiThread.start();
 		}
 
-		try {
-			os.writeUTF("REGISTO|" + (verf ? "TRUE" : "FALSE"));
-		} catch (IOException e) {
-
-			e.printStackTrace();
-		}
+		enviarString("REGISTO|" + (verf ? "TRUE" : "FALSE"));
 
 		return false;
 	}
@@ -394,14 +467,31 @@ class ClientThread extends Thread {
 		try {
 			verf = rmi.login(username, password);
 		} catch (RemoteException e) {
-			e.printStackTrace();
+			rmiThread.start();
 		}
 
-		try {
-			os.writeUTF("LOGIN|" + (verf != null ? ("TRUE" + "|" + verf.getId() + "|" + verf.getUsername() + "|" + verf.getDeicoins()) : "FALSE"));
-		} catch (IOException e) {
+		enviarString("LOGIN|" + (verf != null ? ("TRUE" + "|" + verf.getId() + "|" + verf.getUsername() + "|" + verf.getDeicoins()) : "FALSE"));
 
-			e.printStackTrace();
+		return false;
+	}
+
+	private boolean login2(String[] dadosLogin) {
+		String username = dadosLogin[0];
+		String password = dadosLogin[1];
+
+		User verf = null;
+
+		try {
+			verf = rmi.login(username, password);
+			if (verf == null)
+				verf = new User(false);
+			enviarObjecto(verf);
+		} catch (RemoteException e) {
+			// e.printStackTrace();
+			// ligarRMI();
+
+			rmiThread.start();
+
 		}
 
 		return false;
@@ -416,22 +506,25 @@ class ClientThread extends Thread {
 	}
 
 	private void heartbeat() {
-		try {
-			os.writeUTF("heartbeat");
+		// os.writeUTF("heartbeat");
+		enviarString("heartbeat");
+	}
 
+	private void enviarString(String dados) {
+		try {
+			oos.writeObject(dados);
 		} catch (IOException r) {
 
 			fecharSocket();
 		}
 	}
 
-	private void enviarString(String dados) {
+	private void enviarObjecto(Object o) {
 		try {
-			// Thread.sleep(150);
-			os.writeUTF(dados);
-		} catch (IOException r) {
+			oos.writeObject(o);
+		} catch (IOException e) {
 
-			fecharSocket();
+			e.printStackTrace();
 		}
 	}
 
@@ -445,5 +538,46 @@ class ClientThread extends Thread {
 			e.printStackTrace();
 		}
 
+	}
+
+	public RMI ligarRMI() {
+		try {
+			this.rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
+
+			return rmi;
+		} catch (NotBoundException e) {
+			System.out.println("Not bound");
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public class RMIThread extends Thread {
+
+		RMI rmi;
+
+		public RMIThread(RMI rmi) {
+			this.rmi = rmi;
+		}
+
+		public void run() {
+			boolean verf = false;
+			while (!verf) {
+				try {
+					Thread.sleep(1500);
+					rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
+					verf = true;
+					System.out.println("Connected RMI");
+				} catch (NotBoundException e) {
+					System.out.println("Not bound");
+				} catch (RemoteException e) {
+					System.out.println("RMI failed");
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 }

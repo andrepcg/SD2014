@@ -40,7 +40,7 @@ public class Ping extends Thread {
 				RemoteHost server = iterator.next();
 				if (!ping(server.getHost(), server.getPort())) {
 					if (server.equals(primario)) {
-						// int x = servidores.size();
+
 						if (servidores.size() > 1) {
 							primario = servidores.get(1);
 							sendBytes(primario.getHost(), primario.getPort(), "SET PRIMARIO TRUE");
@@ -48,7 +48,11 @@ public class Ping extends Thread {
 						} else
 							primario = null;
 					}
-					iterator.remove();
+					try {
+						iterator.remove();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 
 					System.out.println("server removido " + server);
 				}

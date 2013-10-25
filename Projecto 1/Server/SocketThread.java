@@ -8,6 +8,7 @@ import java.util.HashMap;
 
 import RMI.RMI;
 import Util.Clientes;
+import Util.RemoteHost;
 
 public class SocketThread extends Thread {
 
@@ -16,10 +17,12 @@ public class SocketThread extends Thread {
 	private int porta;
 	private Clientes listaClientes;
 	private RMI rmi;
+	RemoteHost rmihost;
 
-	public SocketThread(Server server, int porta, RMI rmi) {
+	public SocketThread(Server server, int porta, RMI rmi, RemoteHost rmihost) {
 		ligado = true;
 		this.rmi = rmi;
+		this.rmihost = rmihost;
 		listaClientes = new Clientes();
 
 		try {
@@ -43,7 +46,7 @@ public class SocketThread extends Thread {
 
 				listaClientes.put(clientSocket.getInetAddress(), clientSocket.getPort());
 
-				ClientThread theClient = new ClientThread(clientSocket, rmi);
+				ClientThread theClient = new ClientThread(clientSocket, rmi, rmihost);
 				theClient.start();
 
 			} catch (Exception e) {

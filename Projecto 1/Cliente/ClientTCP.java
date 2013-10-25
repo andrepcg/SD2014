@@ -4,13 +4,19 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.InputMismatchException;
 import java.util.Scanner;
 
+import Util.Ideia;
+import Util.Mercado;
+import Util.Objecto;
+import Util.OrdemCompra;
+import Util.OrdemVenda;
 import Util.RemoteHost;
 import Util.Response;
+import Util.Transaccao;
 import Util.User;
 
 public class ClientTCP {
@@ -20,6 +26,7 @@ public class ClientTCP {
 	private static boolean running = true;
 	Scanner sc;
 	Response resposta;
+	Objecto objecto;
 	User utilizador;
 
 	public static void main(String args[]) throws IOException {
@@ -52,6 +59,7 @@ public class ClientTCP {
 		if (socketThread.getServer() != null) {
 
 			resposta = null;
+			objecto = null;
 			sc = new Scanner(System.in);
 
 			boolean logado = false;
@@ -77,8 +85,10 @@ public class ClientTCP {
 					String password = sc.nextLine();
 
 					resposta = new Response();
+
 					socketThread.setResposta(resposta);
-					// socketThread.registar(username, password);
+					socketThread.setObj(objecto);
+					socketThread.registar(username, password);
 
 					if (dados(resposta).contains("TRUE")) {
 
@@ -103,13 +113,24 @@ public class ClientTCP {
 					socketThread.setResposta(resposta);
 					socketThread.login(username, password);
 
-					if (dados(resposta).contains("TRUE")) {
-						// utilizador = criarUser(resposta.getResposta());
-						// System.out.println(resposta.getResposta());
-						utilizador = new User(resposta.getResposta());
+					User u = null;
+					Objecto obj = new Objecto(u);
+					socketThread.setObj(obj);
+					u = (User) sincronizarObjecto(obj);
+
+					// if (dados(resposta).contains("TRUE")) {
+					// utilizador = new User(resposta.getResposta());
+					// logado = true;
+					// System.out.println("## Login com sucesso ##");
+					// } else if (resposta.getResposta().contains("FALSE")) {
+					// System.out.println("## Login falhado ##");
+					// }
+
+					if (u != null && !u.getUsername().contains("#failed#")) {
+						utilizador = u;
 						logado = true;
 						System.out.println("## Login com sucesso ##");
-					} else if (resposta.getResposta().contains("FALSE")) {
+					} else {
 						System.out.println("## Login falhado ##");
 					}
 
@@ -121,8 +142,17 @@ public class ClientTCP {
 			int topicoActual = 0;
 
 			while (logado) {
+
 				resposta = new Response();
 				socketThread.setResposta(resposta);
+
+				if (utilizador.getHistorico() != null) {
+					System.out.print("\n# Tem " + utilizador.getHistorico().size() + " novas transaccoes #\nVer? [S]im - [N]ao >> ");
+					String in = sc.nextLine();
+					System.out.println();
+					if (in.compareToIgnoreCase("s") == 0)
+						imprimirNotificacoes();
+				}
 
 				imprimirMenuPrincipal();
 
@@ -142,25 +172,52 @@ public class ClientTCP {
 
 				if (num == 2) {
 
-					int in = 0;
-					boolean ver = false;
-					while (!ver) {
-						System.out.print("Quantidade: ");
-						try {
-							in = sc.nextInt();
-							ver = true;
-						} catch (InputMismatchException e) {
+					// int in = 0;
+					// boolean ver = false;
+					// while (!ver) {
+					// System.out.print("Quantidade: ");
+					// try {
+					// in = sc.nextInt();
+					// ver = true;
+					// } catch (InputMismatchException e) {
+					//
+					// }
+					// }
 
-						}
-					}
-
-					socketThread.adicionarPacote("HISTORICO_TRANSACCOES|" + utilizador.getId() + "|" + in);
+					socketThread.adicionarPacote("HISTORICO_TRANSACCOES|" + utilizador.getId() + "|0");
 					imprimirTransaccoes(dados(resposta));
 
 				} else if (num == 3) {
 
 					socketThread.adicionarPacote("USER_IDEIAS|" + utilizador.getId());
 					imprimirIdeias(dados(resposta));
+
+					if (!resposta.getResposta().contains("|0")) {
+						System.out.println("[A]pagar ideia");
+						String in = sc.nextLine();
+
+						if (in.compareToIgnoreCase("A") == 0) {
+							boolean verf = false;
+							while (!verf) {
+								System.out.print("ID Ideia >> ");
+								String x = sc.nextLine();
+								if (x.matches("\\b(\\d)+\\b")) {
+									socketThread.adicionarPacote("APAGAR_IDEIA|" + x + "|" + utilizador.getId());
+									verf = true;
+								} else
+									verf = true;
+
+								resposta.setResposta(null);
+								String d = dados(resposta);
+								if (d.contains("APAGAR_IDEIA")) {
+									if (d.contains("true"))
+										System.out.println("# Ideia apagada #");
+									else
+										System.out.println("# A ideia nao pode ser apagada #");
+								}
+							}
+						}
+					}
 
 				} else if (num == 4) {
 
@@ -203,8 +260,13 @@ public class ClientTCP {
 						System.out.println("\n[ TOPICO ] " + topicos[topicoActual - 1]);
 						imprimirIdeias(dados(resposta));
 
-						System.out.println("[I]nserir Ideia - [C]omprar Ideia");
-						System.out.print(">> ");
+						System.out.print("[I]nserir Ideia");
+
+						if (!resposta.getResposta().contains("|0")) {
+							System.out.println(" - [C]omprar Ideia");
+						}
+
+						System.out.print("\n>> ");
 						String in = sc.nextLine();
 						menuTopico(in, topicoActual, utilizador);
 					}
@@ -215,6 +277,15 @@ public class ClientTCP {
 			socketThread.setRunning(false);
 			System.out.println("nao ligado loader");
 		}
+
+	}
+
+	private void imprimirNotificacoes() {
+		for (Transaccao t : utilizador.getHistorico()) {
+			System.out.println("[ " + t.getTipo() + " ] Ideia " + t.getIdIdeia() + " : " + t.getNumShares() + " shares (" + t.getPreco() + "/share) - Total: " + (t.getTipo().equals("compra") ? "-" : "+") + t.getPago() + "DeiCoins");
+		}
+
+		utilizador.setHistorico(null);
 
 	}
 
@@ -238,6 +309,15 @@ public class ClientTCP {
 
 	}
 
+	private void getUser() {
+		socketThread.adicionarPacote("GET_UTILIZADOR|" + utilizador.getId());
+		User u = null;
+		Objecto obj = new Objecto(u);
+		socketThread.setObj(obj);
+		Object o = sincronizarObjecto(obj);
+		utilizador = (User) o;
+	}
+
 	private void imprimirShares(String dados) {
 		// SHARES|idShare;idIdeia;numShares;texto
 		if (dados != null) {
@@ -245,6 +325,8 @@ public class ClientTCP {
 			if (dados.startsWith("SHARES|0")) {
 				System.out.println("Sem shares\n");
 			} else {
+				getUser();
+
 				String[] split = dados.split("\\|");
 
 				for (int i = 1; i < split.length; i++) {
@@ -252,31 +334,81 @@ public class ClientTCP {
 					System.out.println(t[1] + ". [ " + t[2] + " shares ] [ Cotacao ] " + encurtarIdeia(t[3], 40));
 				}
 
-				System.out.print("\n>> ");
+				System.out.print("[L]istar todas as ordens\n>> ");
 				String in = sc.nextLine();
 
 				if (in.matches("\\b(\\d)+\\b")) {
 					resposta.setResposta(null);
 					socketThread.adicionarPacote("MERCADO|" + in);
 					imprimirOrdens(dados(resposta));
-					// dentro de uma share
-					//
-					// [ORDENS COMPRA]
-					// num_shares_somadas num_shares preco_por_share
-					// ###################### ############## ###################
-					// 1000 1000 120
-					// 1500 500 119
-					// 2500 1000 118
 
-					// [ORDENS VENDA]
-					// num_shares_somadas num_shares preco_por_share
-					// ###################### ############## ###################
-					// 500 500 121
-					// 1000 500 130
-					// 2000 1000 135
+					socketThread.adicionarPacote("LISTAR_ORDENS|" + utilizador.getId() + "|" + in);
+
+					Mercado m = null;
+					Objecto obj = new Objecto(m);
+					socketThread.setObj(obj);
+					Object o = sincronizarObjecto(obj);
+					m = (Mercado) o;
+
+					imprimirOrdens(m);
+
+				} else if (in.compareToIgnoreCase("l") == 0) {
+					socketThread.adicionarPacote("LISTAR_ORDENS|" + utilizador.getId() + "|0");
+					Mercado m = null;
+					Objecto obj = new Objecto(m);
+					socketThread.setObj(obj);
+					Object o = sincronizarObjecto(obj);
+					m = (Mercado) o;
+					imprimirOrdens(m);
+
+				}
+
+				if (in.matches("\\b(\\d)+\\b") || in.compareToIgnoreCase("l") == 0) {
+					System.out.print("[R]emover ordem - [E]ditar ordem\n>> ");
+
+					String x = sc.nextLine();
+					if (x.compareToIgnoreCase("r") == 0) {
+
+						System.out.print("Ordem de [C]ompra ou [V]enda >> ");
+						String ocv = sc.nextLine();
+						int tipo;
+						if (ocv.compareToIgnoreCase("c") == 0) {
+							tipo = 0;
+						} else
+							tipo = 1;
+
+						String idordem;
+						do {
+							System.out.print("ID ordem >> ");
+							idordem = sc.nextLine();
+						} while (!idordem.matches("\\b(\\d)+\\b"));
+
+						socketThread.adicionarPacote("REMOVER_ORDEM|" + utilizador.getId() + "|" + tipo + "|" + idordem);
+
+					}
 				}
 			}
 		}
+	}
+
+	private void imprimirOrdens(Mercado m) {
+		System.out.println("\n[ Suas Ordens de Compra ]");
+		// ir para ideia
+
+		// alterar ordem
+		if (m.getOrdensCompra().size() > 0)
+			for (OrdemCompra oc : m.getOrdensCompra())
+				System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
+		else
+			System.out.println("-- Sem ordens --");
+
+		System.out.println("\n[ Suas Ordens de Venda ]");
+
+		if (m.getOrdensVenda().size() > 0)
+			for (OrdemVenda oc : m.getOrdensVenda())
+				System.out.println(oc.getId() + ".\t [Ideia " + oc.getIdideia() + "] " + oc.getNum_shares() + " shares\t" + oc.getPreco_por_share() + "/share");
+		else
+			System.out.println("-- Sem ordens --");
 	}
 
 	private void imprimirOrdens(String input) {
@@ -319,19 +451,88 @@ public class ClientTCP {
 	private void menuTopico(String comando, int topicoActual, User utilizador) {
 
 		if (comando.equals("I") || comando.equals("i"))
-			criarIdeia(topicoActual, utilizador);
+			criarIdeia(topicoActual, utilizador, 0, 0, "null");
 		else if (comando.equals("C") || comando.equals("c"))
 			comprarIdeia();
 		else if (comando.matches("\\b(\\d)+\\b")) {
-			menuIdeia(comando);
+			menuIdeia(comando, topicoActual);
 		}
+
+		getUser();
 
 	}
 
-	private void menuIdeia(String comando) {
-		socketThread.adicionarPacote("IDEIA|" + comando);
-		resposta.setResposta(null);
-		String dados = dados(resposta);
+	private void menuIdeia(String ideiaActual, int topicoActual) {
+		socketThread.adicionarPacote("IDEIA|" + ideiaActual);
+
+		ArrayList<Ideia> ideias = null;
+		Objecto obj = new Objecto(ideias);
+		socketThread.setObj(obj);
+
+		Object o = sincronizarObjecto(obj);
+		ideias = (ArrayList<Ideia>) o;
+
+		if (ideias.size() > 0) {
+			System.out.println(ideias.get(0).getIdIdeia() + ". [ " + ideias.get(0).getUsername() + " ] " + ideias.get(0).getTexto() + " - " + ideias.get(0).getData());
+			for (int i = 1; i < ideias.size(); i++) {
+				Ideia id = ideias.get(i);
+				System.out.println("\t> " + id.getIdIdeia() + ". [ " + id.getUsername() + " ] < " + id.getSentimento() + " > " + id.getTexto() + " - " + id.getData());
+			}
+		}
+		// responder
+		// comprar shares
+
+		System.out.println("\n[R]esponder - [C]omprar ideia");
+
+		String in = sc.nextLine();
+
+		if (in.equals("R") || in.equals("r")) {
+			// responderIdeia(ideiaActual, in);
+			String idIdeia;
+			do {
+				System.out.print("ID >> ");
+				idIdeia = sc.nextLine();
+			} while (!idIdeia.matches("\\b(\\d)+\\b"));
+
+			String sentimento = null;
+			boolean v = false;
+			while (!v) {
+				System.out.print("[P]ositivo - [N]egativo - N[E]utro >> ");
+				sentimento = sc.nextLine();
+				if (sentimento.compareToIgnoreCase("p") == 0) {
+					sentimento = "positivo";
+					v = true;
+				} else if (sentimento.compareToIgnoreCase("n") == 0) {
+					sentimento = "negativo";
+					v = true;
+				} else if (sentimento.compareToIgnoreCase("e") == 0) {
+					sentimento = "neutro";
+					v = true;
+				}
+				System.out.println();
+			}
+
+			criarIdeia(topicoActual, utilizador, Integer.parseInt(ideiaActual), Integer.parseInt(idIdeia), sentimento);
+		} else if (in.equals("C") || in.equals("c"))
+			comprarIdeia();
+		// else if (comando.matches("\\b(\\d)+\\b")) {
+		// menuIdeia(comando);
+		// }
+
+	}
+
+	private void imprime(Ideia ideia, ArrayList<Ideia> ideias, String barraT) {
+		System.out.println(ideia.getIdIdeia() + " " + ideia.getTexto());
+
+		for (Ideia i : ideias) {
+
+			if (i.getIdIdeiaPrincipal() == ideia.getIdIdeia()) {
+
+				imprime(i, ideias, "\t");
+			}
+			System.out.print(" ");
+		}
+
 	}
 
 	private void comprarIdeia() {
@@ -373,7 +574,7 @@ public class ClientTCP {
 				if (in.compareToIgnoreCase("s") != 0)
 					verf = true;
 			} else {
-				System.out.println("Compra de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + id + "\nCONFIRMAR? [S]im [N]ao\n>> ");
+				System.out.println("\nCompra de " + numShares + " shares no valor de " + precoTotal + " (" + preco + "/share) Ideia: " + id + "\n\nCONFIRMAR? [S]im [N]ao\n>> ");
 				in = sc.nextLine();
 				if (in.compareToIgnoreCase("s") == 0) {
 					// ORDEM_COMPRA|idIdeia;idUser;numShares;preco_por_share;precoTotal
@@ -386,7 +587,7 @@ public class ClientTCP {
 
 	}
 
-	private void criarIdeia(int topico, User user) {
+	private void criarIdeia(int topico, User user, int idMae, int idIdeia, String sentimento) {
 		System.out.print("\nIdeia >> ");
 		String texto = sc.nextLine();
 
@@ -411,25 +612,24 @@ public class ClientTCP {
 			System.out.print("\nPath >> ");
 			String path = sc.nextLine();
 
-			String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime() + "|" + file + "|" + getFileSize(path) + "|" + getExtensao(path);
+			String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime() + "|" + idMae + ";" + idIdeia + ";" + sentimento + "|" + file + "|" + getFileSize(path) + "|" + getExtensao(path);
 			socketThread.adicionarPacote(ideia);
-			try {
-				Thread.currentThread().sleep(100);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			socketThread.enviarFicheiro(path);
+
+			resposta.setResposta(null);
+			String check = dados(resposta);
+			if (check.contains("RECEBER_FILE|CHECK"))
+				socketThread.enviarFicheiro(path);
+
 			socketThread.setLigado(true);
 		} else {
-			String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime() + "|" + file;
+			String ideia = "CRIAR_IDEIA|" + user.getId() + "|" + topico + "|" + texto + "|" + preco + "|" + getTime() + "|" + idMae + ";" + idIdeia + ";" + sentimento + "|" + file;
 			socketThread.adicionarPacote(ideia);
 		}
 
-		if (receberCheck())
-			System.out.println("## ideia inserida");
-		else
-			System.out.println("## nope");
+		// if (receberCheck())
+		// System.out.println("## ideia inserida");
+		// else
+		// System.out.println("## nope");
 
 	}
 
@@ -460,7 +660,7 @@ public class ClientTCP {
 		// TOPICOS_IDEIAS|id;username;texto;timestamp
 		if (dados != null) {
 
-			if (dados.startsWith("TOPICO_IDEIAS|0")) {
+			if (dados.startsWith("TOPICO_IDEIAS|0") || dados.startsWith("USER_IDEIAS|0")) {
 				System.out.println("Sem ideias\n");
 			} else {
 
@@ -521,6 +721,7 @@ public class ClientTCP {
 		System.out.println("2. Historico de Transaccoes");
 		System.out.println("3. Minhas ideias");
 		System.out.println("4. Carteira de Shares");
+		System.out.println("# DeiCoins: " + utilizador.getDeicoins() + " #");
 		// System.out.println("5. Listar Topicos");
 		// System.out.println("5. ");
 	}
@@ -529,15 +730,14 @@ public class ClientTCP {
 		// LOGIN|TRUE|id|username|deicoins
 		String[] split = dados.split("\\|");
 
-		return new User(Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]));
+		return new User(Integer.parseInt(split[2]), split[3], Double.parseDouble(split[4]), null);
 	}
 
 	private String dados(Response resposta) {
-		long time = System.currentTimeMillis();
 		synchronized (resposta) {
 			while (resposta.isNull()) {
 				try {
-					resposta.wait();
+					resposta.wait(2000);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -545,6 +745,20 @@ public class ClientTCP {
 
 		}
 		return resposta.getResposta();
+	}
+
+	private Object sincronizarObjecto(Objecto obj) {
+		synchronized (obj) {
+
+			try {
+				obj.wait(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+		}
+
+		return obj.getObj();
 	}
 
 	private void imprimirDados(String string, boolean indices) {

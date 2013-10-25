@@ -33,10 +33,11 @@ public class Server {
 		String loader = getHost(args);
 		primario = checkIfPrimary(args);
 		rmihost = new RemoteHost(getRMI(args));
-
+		//
 		// porta = 5000;
 		// String loader = "localhost:9000";
 		// boolean primary = true;
+		// rmihost = new RemoteHost("localhost:6000");
 
 		if (loader != null && porta > 0 && rmihost != null) {
 			new Server(loader);
@@ -54,44 +55,41 @@ public class Server {
 		failover = new Failover(this, porta);
 		failover.start();
 
-		// if (rmiON) {
-		// socketThread = new SocketThread(this, porta, this.rmi);
-		// socketThread.start();
-		// }
+		rmi = ligarRMI();
+
+		socketThread = new SocketThread(this, porta, rmi, rmihost);
+		socketThread.start();
 
 		Scanner scanIn = new Scanner(System.in);
-		// while (ligado) {
-		//
-		// System.out.print(">> ");
-		// String s = scanIn.nextLine();
-		//
-		// if (s.contentEquals("clientes")) {
-		// System.out.println(socketThread.listarClientes());
-		// }
-		//
-		// }
+		while (ligado) {
 
-		try {
-			socketThread.join();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.print(">> ");
+			String s = scanIn.nextLine();
+
+			if (s.contentEquals("clientes")) {
+				System.out.println(socketThread.listarClientes());
+			}
 		}
+		// try {
+		// socketThread.join();
+		// } catch (InterruptedException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
 	}
 
-	public boolean ligarRMI() {
+	public RMI ligarRMI() {
 		try {
 			this.rmi = (RMI) LocateRegistry.getRegistry(rmihost.getHost(), rmihost.getPort()).lookup("registry");
 			rmiON = true;
-			socketThread = new SocketThread(this, porta, this.rmi);
-			socketThread.start();
-			return true;
+
+			return rmi;
 		} catch (NotBoundException e) {
 			System.out.println("Not bound");
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
-		return false;
+		return null;
 	}
 
 	public void setPrimario(boolean b) {

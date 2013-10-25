@@ -51,7 +51,7 @@ public class Loader {
 					int port = receivePacket.getPort();
 					RemoteHost s = new RemoteHost(ip, port);
 					threadPing.addServidor(s);
-					if ((connect.contains("primario") && primario == null) || threadPing.serverSize() == 0) {
+					if ((connect.contains("primario") && threadPing.getPrimario() == null) || threadPing.serverSize() == 0) {
 						primario = s;
 						threadPing.setPrimario(s);
 					}

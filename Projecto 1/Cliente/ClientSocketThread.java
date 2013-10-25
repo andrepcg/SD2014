@@ -17,6 +17,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import Util.Objecto;
 import Util.RemoteHost;
 import Util.Response;
 
@@ -34,25 +35,29 @@ public class ClientSocketThread extends Thread {
 	private long lastReconnect;
 
 	private Thread outThread;
-	private Thread inThread;
+	private Thread releaseLock;
+	private Thread inThreadObj;
 
 	private BlockingQueue<String> outboundPacketQueue;
-	private BlockingQueue<String> inboundPacketQueue;
+	public BlockingQueue<Object> inboundPacketQueueObj;
 
 	private String topicos;
 	boolean login;
 
 	private Response resposta;
+	private Objecto obj;
 
 	private boolean heartBeatEnviado = false;
 	private boolean heartBeatRecebido = false;
+	private boolean loaderStatus = false;
+	private ObjectInputStream ois;
 
 	public ClientSocketThread(RemoteHost loader) {
 		this.loader = loader;
 		running = true;
 
 		outboundPacketQueue = new LinkedBlockingQueue<String>();
-		inboundPacketQueue = new LinkedBlockingQueue<String>();
+		inboundPacketQueueObj = new LinkedBlockingQueue<Object>();
 
 		server = getServerFromLoader();
 		// synchronized (server) {
@@ -64,30 +69,35 @@ public class ClientSocketThread extends Thread {
 			// System.out.println("## Ligado ##\n");
 		}
 
-		inThread = new Thread(new inbound());
-		inThread.setName("inThread");
-		inThread.setDaemon(true);
+		inThreadObj = new Thread(new inboundObject());
+		inThreadObj.setName("inThreadObj");
+		inThreadObj.setDaemon(true);
 
 		outThread = new Thread(new outbound());
 		outThread.setName("outThread");
 		outThread.setDaemon(true);
+
+		releaseLock = new Thread(new releaseLock());
+		releaseLock.setName("releaseLock");
+		releaseLock.setDaemon(true);
 	}
 
 	public void run() {
-		inThread.start();
+		inThreadObj.start();
 		outThread.start();
+		// releaseLock.start();
 
-		// heartbeat();
 		lastHeartBeat = System.currentTimeMillis();
 
 		while (running) {
 
 			try {
-				String input = inboundPacketQueue.peek();
+				Object input = inboundPacketQueueObj.peek();
 				if (input != null) {
-					inboundPacketQueue.take();
+					inboundPacketQueueObj.take();
 					comandos(input);
 				}
+
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -96,7 +106,7 @@ public class ClientSocketThread extends Thread {
 
 			if (ligado && time - lastHeartBeat >= 3000) {
 				heartbeat();
-			} else if ((heartBeatEnviado && !heartBeatRecebido) && time - lastHeartBeat >= 500)
+			} else if ((heartBeatEnviado && !heartBeatRecebido) && time - lastHeartBeat >= 500 && time - lastReconnect >= 2000)
 				reconnect();
 		}
 	}
@@ -105,27 +115,40 @@ public class ClientSocketThread extends Thread {
 		return login;
 	}
 
-	private void comandos(String input) {
+	private void comandos(Object input) {
 
-		if (input.contains("heartbeat")) {
-			heartBeatRecebido = true;
+		if (input instanceof String) {
+			String input1 = (String) input;
 
-		} else if (input.contains("LOGIN")) {
+			if (input1.contains("heartbeat")) {
+				heartBeatRecebido = true;
 
-			if (input.contains("TRUE"))
-				sincronizar(resposta, input);
+			} else if (input1.contains("LOGIN")) {
 
-			else if (input.contains("FALSE"))
-				sincronizar(resposta, "FALSE");
+				if (input1.contains("TRUE"))
+					sincronizar(resposta, input1);
 
-		} else if (input.contains("REGISTO")) {
+				else if (input1.contains("FALSE"))
+					sincronizar(resposta, "FALSE");
 
-			if (input.contains("TRUE")) {
-				sincronizar(resposta, "TRUE");
+			} else if (input1.contains("REGISTO")) {
+
+				if (input1.contains("TRUE")) {
+					sincronizar(resposta, "TRUE");
+				}
+
+			} else {
+				sincronizar(resposta, input1);
 			}
+		} else
+			sincronizarObjecto(obj, input);
 
-		} else {
-			sincronizar(resposta, input);
+	}
+
+	private void sincronizarObjecto(Objecto obj2, Object input) {
+		synchronized (obj2) {
+			obj2.setObj(input);
+			obj2.notify();
 		}
 
 	}
@@ -188,18 +211,23 @@ public class ClientSocketThread extends Thread {
 
 	private synchronized boolean reconnect() {
 		fecharSocket();
+		// sincronizar(resposta, "");
+		// sincronizarObjecto(obj, null);
 		lastReconnect = System.currentTimeMillis();
-		if (!connectSocket()) {
-			this.server = getServerFromLoader();
-			if (server != null)
-				return connectSocket();
-			else
-				return false;
-		} else {
-			System.out.println("## Ligacao restabelecida ##\n");
-			ligado = true;
-			return true;
-		}
+		if (lastReconnect - lastHeartBeat >= 1000)
+			if (!connectSocket()) {
+				this.server = getServerFromLoader();
+				if (server != null)
+					return connectSocket();
+				else
+					return false;
+			} else {
+				System.out.println("## Ligacao restabelecida ##\n");
+				ligado = true;
+				return true;
+			}
+		return false;
+
 	}
 
 	private boolean connectSocket() {
@@ -208,7 +236,7 @@ public class ClientSocketThread extends Thread {
 			s.setSoTimeout(1000);
 			is = new DataInputStream(s.getInputStream());
 			os = new DataOutputStream(s.getOutputStream());
-			// ois = new ObjectInputStream(s.getInputStream());
+			ois = new ObjectInputStream(s.getInputStream());
 
 			// br = new BufferedReader(new
 			// InputStreamReader(s.getInputStream()));
@@ -257,7 +285,7 @@ public class ClientSocketThread extends Thread {
 			socket.receive(receivePacket);
 			socket.close();
 			String data = new String(receivePacket.getData());
-
+			loaderStatus = true;
 			if (data.startsWith("S")) {
 				RemoteHost server;
 				String[] split = data.split(";");
@@ -265,11 +293,13 @@ public class ClientSocketThread extends Thread {
 					server = new RemoteHost(split[1], split[2]);
 					return server;
 
-				} else
+				} else {
 					server = null;
+					// delayConnect = System.currentTimeMillis()+3000;
+				}
 			}
 		} catch (IOException e) {
-
+			loaderStatus = false;
 			e.printStackTrace();
 		}
 		return null;
@@ -331,10 +361,12 @@ public class ClientSocketThread extends Thread {
 	}
 
 	public Object receberObjecto() {
+		ligado = false;
 		try {
-			ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
 			Object o = ois.readObject();
+			ligado = true;
 			return o;
+
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -342,22 +374,44 @@ public class ClientSocketThread extends Thread {
 
 			e.printStackTrace();
 		}
+		ligado = true;
 		return null;
 	}
 
-	private class inbound implements Runnable {
+	public Object getObj() {
+		return obj;
+	}
+
+	public void setObj(Objecto obj) {
+		this.obj = obj;
+	}
+
+	private class inboundObject implements Runnable {
 		public void run() {
 
-			while (!inThread.isInterrupted()) {
+			while (!inThreadObj.isInterrupted()) {
 				try {
-					String in = is.readUTF();
-					// System.out.println(in);
-					inboundPacketQueue.add(in);
-				} catch (IOException e) {
+					Object in = ois.readObject();
 
-					// reconnect();
+					inboundPacketQueueObj.add(in);
 				} catch (Exception e) {
+					// e.printStackTrace();
+				}
+			}
 
+		}
+	}
+
+	private class releaseLock implements Runnable {
+		public void run() {
+
+			while (!releaseLock.isInterrupted()) {
+				try {
+					Thread.sleep(5000);
+					sincronizar(resposta, "");
+					sincronizarObjecto(obj, null);
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 
@@ -368,7 +422,7 @@ public class ClientSocketThread extends Thread {
 		public void run() {
 
 			// int packetSize;
-			while (!inThread.isInterrupted()) {
+			while (!outThread.isInterrupted()) {
 				String p = null;
 				try {
 					p = outboundPacketQueue.take();
@@ -390,5 +444,10 @@ public class ClientSocketThread extends Thread {
 			}
 
 		}
+	}
+
+	public void registar(String username, String password) {
+		adicionarPacote("REGISTAR|" + username + "|" + md5(password));
+
 	}
 }
